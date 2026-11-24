@@ -29,9 +29,11 @@ make dist    # dist/ 에 배포 파일 생성
 
 | OS | 파일 |
 |---|---|
-| macOS | `checker-macos` |
+| macOS | `checker-macos.zip` |
 | Windows | `checker-windows-amd64.exe` |
-| Linux | `checker-linux-amd64` |
+| Linux | `checker-linux-amd64.zip` |
+
+macOS·Linux 용은 실행 권한이 유지되도록 zip 으로 묶습니다. 학생이 `chmod` 를 할 필요가 없습니다.
 
 제출받은 zip 을 한 폴더에 모아 복호화합니다.
 
@@ -46,19 +48,14 @@ go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 ## 학생
 
 1. 스프링 서버를 먼저 실행합니다.
-2. 채점기를 실행하면 브라우저에 입력 창이 열립니다.
+2. 받은 zip 을 더블클릭해 풀고, 채점기를 더블클릭하면 브라우저에 입력 창이 열립니다.
 3. 학번, Neon 주소, DB 사용자명·비밀번호, 스키마(선택), 포트를 넣고 [검사 시작]을 누릅니다.
 4. `results/submit_<학번>_<시각>.zip` 을 제출합니다.
 
-macOS 에서 실행이 막히면:
+처음 실행할 때 경고창이 뜨면 한 번만 허용합니다.
 
-```sh
-xattr -d com.apple.quarantine ./checker-macos
-chmod +x ./checker-macos
-./checker-macos
-```
-
-Windows 에서 "PC 보호" 창이 뜨면 [추가 정보] → [실행]을 누릅니다.
+- macOS: 경고창에서 [완료] → 시스템 설정 → 개인정보 보호 및 보안 → "checker-macos 이(가) 차단되었습니다" 옆 [그래도 열기] → 암호 입력 → [그래도 열기].
+- Windows: "Windows 의 PC 보호" 창에서 [추가 정보] → [실행]. 백신이 파일을 지웠으면 Windows 보안 → 보호 기록에서 [디바이스에서 허용] 후 다시 받습니다.
 
 브라우저 없이 실행하려면 플래그로 값을 줍니다. 빠진 값은 물어봅니다.
 

@@ -30,6 +30,10 @@ dist:
 	@# Apple Silicon 과 Intel 용을 유니버설 바이너리 하나로 합친다 (학생이 CPU 를 고를 필요 없음).
 	lipo -create -output dist/checker-macos dist/checker-darwin-arm64 dist/checker-darwin-amd64
 	rm dist/checker-darwin-arm64 dist/checker-darwin-amd64
+	@# 브라우저로 실행 파일을 바로 받으면 실행 권한이 사라진다. zip 은 권한을 보존하므로 학생이 chmod 를 안 해도 된다.
+	cd dist && rm -f checker-macos.zip checker-linux-amd64.zip \
+		&& zip -q checker-macos.zip checker-macos && zip -q checker-linux-amd64.zip checker-linux-amd64 \
+		&& rm checker-macos checker-linux-amd64
 
 clean:
 	rm -rf dist
