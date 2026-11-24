@@ -72,7 +72,14 @@ func TestRunWritesEncryptedResultWithoutLeakingPassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	logData, _ := os.ReadFile(res.LogPath)
+	sealedLog, _ := os.ReadFile(res.LogPath)
+	if bytes.Contains(sealedLog, []byte("채점 시작")) {
+		t.Fatal("로그 파일이 평문으로 저장되었습니다")
+	}
+	logData, err := report.Open(priv, sealedLog)
+	if err != nil {
+		t.Fatalf("로그를 개인키로 복호화할 수 없습니다: %v", err)
+	}
 	sealed, _ := os.ReadFile(res.EncPath)
 	plain, err := report.Open(priv, sealed)
 	if err != nil {

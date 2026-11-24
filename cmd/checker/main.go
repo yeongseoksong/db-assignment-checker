@@ -151,8 +151,9 @@ func runCLI(cfg app.Config, in app.Input) int {
 		return 1
 	}
 	fmt.Printf("\n통과 %d / 전체 %d\n", res.Passed, res.Total)
-	fmt.Println("제출 파일(.enc):", res.EncPath)
-	fmt.Println("로그 파일      :", res.LogPath)
+	fmt.Println("결과 파일 :", res.EncPath)
+	fmt.Println("로그 파일 :", res.LogPath)
+	fmt.Println("두 파일(.enc, .log.enc)을 모두 제출하세요.")
 	return 0
 }
 

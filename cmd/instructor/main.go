@@ -44,7 +44,8 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `사용법:
   instructor keygen  -dir keys
-  instructor decrypt -key keys/private.key -hmac keys/hmac.secret -out merged.csv results/*.enc`)
+  instructor decrypt -key keys/private.key -hmac keys/hmac.secret -out merged.csv results/*.enc
+    (*.log.enc 는 merged.csv 옆 logs/ 폴더에 평문 .log 로 풀립니다)`)
 }
 
 func keygen(args []string) error {
@@ -135,10 +136,20 @@ func decrypt(args []string) error {
 	w := csv.NewWriter(out)
 	w.Write(append(append([]string{}, report.Header...), "integrity", "source_file"))
 
-	invalid := 0
+	logDir := filepath.Join(filepath.Dir(*outPath), "logs")
+	invalid, results, logs := 0, 0, 0
 	for _, path := range inputs {
-		integrity, records := readOne(path, priv, secret)
 		base := filepath.Base(path)
+		if strings.HasSuffix(base, ".log.enc") {
+			if err := decryptLog(path, priv, logDir); err != nil {
+				fmt.Fprintf(os.Stderr, "경고: %s: %v\n", base, err)
+			} else {
+				logs++
+			}
+			continue
+		}
+		results++
+		integrity, records := readOne(path, priv, secret)
 		if integrity != "OK" {
 			invalid++
 			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, integrity)
@@ -159,8 +170,28 @@ func decrypt(args []string) error {
 	if err := w.Error(); err != nil {
 		return err
 	}
-	fmt.Printf("%d개 파일 병합 (정상 %d, 의심 %d) -> %s\n", len(inputs), len(inputs)-invalid, invalid, *outPath)
+	fmt.Printf("결과 %d개 병합 (정상 %d, 의심 %d) -> %s\n", results, results-invalid, invalid, *outPath)
+	if logs > 0 {
+		fmt.Printf("로그 %d개 복호화 -> %s\n", logs, logDir)
+	}
 	return nil
+}
+
+// decryptLog 는 암호화된 로그 하나를 logDir 에 평문 .log 로 풀어 쓴다.
+func decryptLog(path string, priv *ecdh.PrivateKey, logDir string) error {
+	sealed, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	plain, err := report.Open(priv, sealed)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(logDir, 0o755); err != nil {
+		return err
+	}
+	name := strings.TrimSuffix(filepath.Base(path), ".enc") // checker_<학번>_<시각>.log
+	return os.WriteFile(filepath.Join(logDir, name), plain, 0o644)
 }
 
 // readOne 은 파일 하나를 복호화하고 HMAC 을 검증한다. 헤더를 뺀 레코드와 integrity 문자열을 돌려준다.

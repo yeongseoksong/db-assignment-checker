@@ -41,6 +41,8 @@ make dist      # dist/ 에 4개 플랫폼 바이너리 생성 (공개키와 HMAC
 go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -out merged.csv results/*.enc
 ```
 
+`results/*.enc` 에는 `.log.enc` 도 포함됩니다. 로그는 `merged.csv` 옆 `logs/` 폴더에 평문 `.log` 로 풀립니다.
+
 `merged.csv` 는 UTF-8 BOM 이 붙어 엑셀에서 한글이 깨지지 않습니다. 열은 아래와 같고 마지막에 `integrity`, `source_file` 이 붙습니다.
 
 `student_id, check_id, group, title, passed, detail, checked_at, checker_version, hostname`
@@ -64,7 +66,7 @@ go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -ou
 4. DB 비밀번호 (`spring.datasource.password`)
 5. 로컬 포트 (기본 8080)
 
-[검사 시작]을 누르면 검사별 ✔/✘ 와 이유, 생성된 `.enc` 와 `.log` 경로가 같은 화면에 나옵니다. 끝나면 [종료]를 누르거나 창을 닫으세요. 10분 동안 아무 입력이 없으면 자동으로 종료됩니다. 입력 창은 `127.0.0.1` 에서만 열립니다. 브라우저가 열리지 않으면 콘솔에 나온 주소를 직접 붙여넣으세요 (`-no-browser` 로 자동 열기를 끌 수 있습니다).
+[검사 시작]을 누르면 검사별 ✔/✘ 와 이유, 생성된 `.enc` 와 `.log.enc` 경로가 같은 화면에 나옵니다. 끝나면 [종료]를 누르거나 창을 닫으세요. 10분 동안 아무 입력이 없으면 자동으로 종료됩니다. 입력 창은 `127.0.0.1` 에서만 열립니다. 브라우저가 열리지 않으면 콘솔에 나온 주소를 직접 붙여넣으세요 (`-no-browser` 로 자동 열기를 끌 수 있습니다).
 
 ### 명령줄 모드
 
@@ -80,8 +82,10 @@ go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -ou
 
 실행 파일과 같은 폴더의 `results` 폴더에 두 파일이 생깁니다 (`-out` 으로 바꿀 수 있음). 결과 화면에 전체 경로가 나옵니다.
 
-- `result_<학번>_<yyyyMMdd-HHmmss>.enc`: **이 파일을 제출합니다.** 암호화되어 있어 학생은 열 수 없습니다.
-- `checker_<학번>_<yyyyMMdd-HHmmss>.log`: 평문 로그. 시작 정보, 요청 URL·상태코드·응답 본문(2KB까지), 검사 결과, 무작위 시드가 있습니다.
+- `result_<학번>_<yyyyMMdd-HHmmss>.enc`: 결과 CSV (암호화)
+- `checker_<학번>_<yyyyMMdd-HHmmss>.log.enc`: 로그 (암호화). 시작 정보, 요청 URL·상태코드·응답 본문(2KB까지), 검사 결과, 무작위 시드가 있습니다.
+
+**두 파일을 모두 제출합니다.** 둘 다 교수자 공개키로 암호화되어 학생은 열 수 없습니다. 검사별 통과 여부와 이유는 실행 화면에서 확인하세요.
 
 DB 비밀번호는 화면, 로그, 결과 파일 어디에도 남지 않습니다. 사용자명은 남을 수 있습니다.
 
@@ -103,5 +107,5 @@ chmod +x ./checker-macos
 
 - 학생은 공개키만 가지므로 `.enc` 내용을 읽을 수 없습니다 (X25519 ECDH, HKDF-SHA256, AES-256-GCM).
 - 위조를 줄이려고 CSV 끝에 HMAC-SHA256 을 붙입니다. 그런데 이 HMAC 비밀키가 배포 바이너리 안에 들어 있어, 작정하면 추출해서 결과를 위조할 수 있습니다. 공개키만으로는 누구나 `.enc` 를 만들 수 있다는 점도 같은 이유입니다.
-- 위조가 의심되면 `.log` 의 시드와 요청 기록을 확인하고, 학생이 서버를 띄운 상태에서 교수자가 직접 다시 채점하세요.
+- 위조가 의심되면 복호화한 로그의 시드와 요청 기록을 확인하고, 학생이 서버를 띄운 상태에서 교수자가 직접 다시 채점하세요.
 - 로컬 입력 창은 요청마다 무작위 토큰을 확인하고 `localhost` 외 Host 헤더를 거부합니다.

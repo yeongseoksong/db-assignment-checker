@@ -3,6 +3,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdh"
 	"errors"
@@ -134,7 +135,7 @@ type Result struct {
 	Total    int
 }
 
-// Run 은 검사를 실행하고 .enc 와 .log 를 쓴다. onDone 은 검사 하나가 끝날 때마다 불린다(nil 가능).
+// Run 은 검사를 실행하고 결과(.enc)와 암호화한 로그(.log.enc)를 쓴다. onDone 은 검사 하나가 끝날 때마다 불린다(nil 가능).
 // in 은 Validate 를 거친 값이어야 한다.
 func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome)) (*Result, error) {
 	if err := os.MkdirAll(cfg.OutDir, 0o755); err != nil {
@@ -142,14 +143,11 @@ func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome))
 	}
 	now := time.Now()
 	stamp := now.Format("20060102-150405")
-	logPath := filepath.Join(cfg.OutDir, fmt.Sprintf("checker_%s_%s.log", in.StudentID, stamp))
+	logPath := filepath.Join(cfg.OutDir, fmt.Sprintf("checker_%s_%s.log.enc", in.StudentID, stamp))
 	encPath := filepath.Join(cfg.OutDir, fmt.Sprintf("result_%s_%s.enc", in.StudentID, stamp))
-	logFile, err := os.Create(logPath)
-	if err != nil {
-		return nil, fmt.Errorf("로그 파일을 만들 수 없습니다: %w", err)
-	}
-	defer logFile.Close()
-	log := newLogger(logFile)
+	// 로그는 메모리에 모았다가 마지막에 교수자 공개키로 암호화해 쓴다 (학생은 읽을 수 없음).
+	var logBuf bytes.Buffer
+	log := newLogger(&logBuf)
 
 	seed := now.UnixNano()
 	// 연결 문자열은 반드시 가려서 기록한다.
@@ -186,6 +184,13 @@ func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome))
 	}
 	if err := os.WriteFile(encPath, sealed, 0o644); err != nil {
 		return nil, fmt.Errorf("결과 파일을 쓸 수 없습니다: %w", err)
+	}
+	sealedLog, err := report.Seal(cfg.PublicKey, logBuf.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(logPath, sealedLog, 0o644); err != nil {
+		return nil, fmt.Errorf("로그 파일을 쓸 수 없습니다: %w", err)
 	}
 	return res, nil
 }
