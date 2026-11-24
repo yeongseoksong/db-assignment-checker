@@ -1,8 +1,14 @@
 package main
 
 import (
+	"archive/zip"
+	"crypto/ecdh"
+	"crypto/rand"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"dbchecker/internal/report"
@@ -45,4 +51,70 @@ func TestSharedDevicesNoOverlap(t *testing.T) {
 	if got := sharedDevices(records); len(got) != 0 {
 		t.Errorf("겹침이 없어야 합니다: %+v", got)
 	}
+}
+
+// writeZip 은 이름→내용으로 제출 zip 을 만든다.
+func writeZip(t *testing.T, entries map[string][]byte) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "submit_20231234_x.zip")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	zw := zip.NewWriter(file)
+	for name, data := range entries {
+		w, err := zw.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write(data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestReadSubmission(t *testing.T) {
+	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret := []byte("test-secret")
+	csvBytes, err := report.BuildCSV([]report.Row{{StudentID: "20231234", CheckID: "TOTAL"}}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sealedResult, _ := report.Seal(priv.PublicKey(), csvBytes)
+	sealedLog, _ := report.Seal(priv.PublicKey(), []byte("로그 내용"))
+
+	t.Run("정상 제출", func(t *testing.T) {
+		path := writeZip(t, map[string][]byte{"result_20231234_x.enc": sealedResult, "checker_20231234_x.log.enc": sealedLog})
+		sub := readSubmission(path, priv, secret)
+		if sub.Integrity != "OK" || len(sub.Records) != 1 || string(sub.Log) != "로그 내용" || sub.LogName != "checker_20231234_x.log" {
+			t.Errorf("정상 제출을 읽지 못했습니다: %+v", sub)
+		}
+	})
+
+	// 압축하면 작지만 풀면 큰 항목(압축 폭탄)은 통째로 읽지 않고 거부해야 한다.
+	t.Run("너무 큰 항목 거부", func(t *testing.T) {
+		huge := make([]byte, maxEntryBytes+1)
+		path := writeZip(t, map[string][]byte{"result_20231234_x.enc": huge, "checker_20231234_x.log.enc": sealedLog})
+		sub := readSubmission(path, priv, secret)
+		if !strings.Contains(sub.Integrity, "너무 큽니다") {
+			t.Errorf("큰 항목은 크기 초과로 거부해야 합니다: %s", sub.Integrity)
+		}
+	})
+
+	t.Run(".enc 가 아닌 항목은 읽지 않음", func(t *testing.T) {
+		huge := make([]byte, maxEntryBytes+1)
+		path := writeZip(t, map[string][]byte{"result_20231234_x.enc": sealedResult, "checker_20231234_x.log.enc": sealedLog, "README.txt": huge})
+		sub := readSubmission(path, priv, secret)
+		if sub.Integrity != "OK" {
+			t.Errorf("관계없는 항목은 무시해야 합니다: %s", sub.Integrity)
+		}
+	})
 }

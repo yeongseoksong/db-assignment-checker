@@ -265,6 +265,9 @@ func readSubmission(path string, priv *ecdh.PrivateKey, secret []byte) submissio
 	var sealedResult, sealedLog []byte
 	var logName string
 	for _, f := range zr.File {
+		if !strings.HasSuffix(f.Name, ".enc") {
+			continue // 결과·로그가 아닌 항목은 읽지 않는다
+		}
 		data, err := readZipEntry(f)
 		if err != nil {
 			return submission{Integrity: "INVALID: zip 항목 " + f.Name + " 을 읽을 수 없음 (" + err.Error() + ")"}
@@ -314,13 +317,25 @@ func readSubmission(path string, priv *ecdh.PrivateKey, secret []byte) submissio
 	return sub
 }
 
+// maxEntryBytes 는 제출 zip 항목 하나를 풀었을 때 허용하는 최대 크기다.
+// 정상 결과·로그는 수십 KB 다. 압축 폭탄(작은 zip 이 수 GB 로 풀림)으로 병합이 죽지 않게 막는다.
+const maxEntryBytes = 16 << 20
+
 func readZipEntry(f *zip.File) ([]byte, error) {
 	rc, err := f.Open()
 	if err != nil {
 		return nil, err
 	}
 	defer rc.Close()
-	return io.ReadAll(rc)
+	// zip 헤더의 크기는 속일 수 있으므로 실제로 읽는 양을 제한한다.
+	data, err := io.ReadAll(io.LimitReader(rc, maxEntryBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxEntryBytes {
+		return nil, fmt.Errorf("항목이 너무 큽니다 (%dMB 초과)", maxEntryBytes>>20)
+	}
+	return data, nil
 }
 
 // writeLog 는 복호화한 로그를 logDir 에 쓴다.
