@@ -2,6 +2,7 @@ package checks
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"math/rand"
@@ -88,7 +89,7 @@ func TestJudgeList(t *testing.T) {
 	toItems := func(books []dataset.Book) []any {
 		var items []any
 		for _, b := range books {
-			items = append(items, map[string]any{"name": b.Title, "x": 1.0})
+			items = append(items, map[string]any{"name": b.Title, "cost": b.Price})
 		}
 		return items
 	}
@@ -111,6 +112,46 @@ func TestJudgeList(t *testing.T) {
 	if res := judgeList(expected, ds.Books, toItems(dup)); res.Passed {
 		t.Errorf("중복 원소는 실패해야 합니다: %+v", res)
 	}
+
+	// 가격: 숫자와 여러 형태의 문자열을 모두 받고, 틀리거나 없으면 실패한다.
+	withPrice := func(price any) []any {
+		var items []any
+		for i, b := range expected {
+			p := price
+			if i > 0 || price == nil {
+				p = b.Price
+			}
+			if price == "none" && i == 0 {
+				items = append(items, map[string]any{"name": b.Title})
+				continue
+			}
+			items = append(items, map[string]any{"name": b.Title, "price": p})
+		}
+		return items
+	}
+	first := expected[0]
+	priceCases := []struct {
+		name  string
+		price any
+		pass  bool
+	}{
+		{"숫자", first.Price, true},
+		{"문자열 숫자", fmt.Sprintf("%.2f", first.Price), true},
+		{"파운드 기호", fmt.Sprintf("£%.2f", first.Price), true},
+		{"인코딩 깨진 파운드", fmt.Sprintf("Â£%.2f", first.Price), true},
+		{"다른 가격", first.Price + 1, false},
+		{"0", 0.0, false},
+		{"가격 없음", "none", false},
+	}
+	for _, c := range priceCases {
+		res := judgeList(expected, ds.Books, withPrice(c.price))
+		if res.Passed != c.pass {
+			t.Errorf("가격 %s: 통과=%v 여야 합니다: %+v", c.name, c.pass, res)
+		}
+		if !c.pass && !strings.Contains(res.Detail, "가격") {
+			t.Errorf("가격 %s: Detail 에 가격 문제를 적어야 합니다: %s", c.name, res.Detail)
+		}
+	}
 }
 
 func TestExtractItems(t *testing.T) {
@@ -130,6 +171,7 @@ func TestCorrectServerPassesAllDynamicChecks(t *testing.T) {
 		"기본":     {},
 		"객체로 감쌈": {WrapInObject: true, TitleField: "bookTitle"},
 		"제목 잘림":  {TruncateTitles: true, TitleField: "name"},
+		"가격 문자열": {PriceAsString: true},
 	}
 	for name, opt := range variants {
 		t.Run(name, func(t *testing.T) {

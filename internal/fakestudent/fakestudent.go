@@ -4,6 +4,7 @@ package fakestudent
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -17,6 +18,7 @@ type Options struct {
 	WrapInObject    bool   // {"books":[...]} 로 감싼다
 	TruncateTitles  bool   // 제목을 25자로 자르고 ... 를 붙인다
 	TitleField      string // 제목 필드명 (기본 "title")
+	PriceAsString   bool   // 가격을 "£36.94" 같은 문자열로 준다
 }
 
 type bookJSON map[string]any
@@ -50,7 +52,11 @@ func Handler(ds *dataset.Dataset, opt Options) http.Handler {
 			if opt.TruncateTitles && len([]rune(title)) > 25 {
 				title = string([]rune(title)[:25]) + "..."
 			}
-			out = append(out, bookJSON{field: title, "price": b.Price, "category": b.Category})
+			var price any = b.Price
+			if opt.PriceAsString {
+				price = fmt.Sprintf("£%.2f", b.Price)
+			}
+			out = append(out, bookJSON{field: title, "price": price, "category": b.Category})
 		}
 		if out == nil {
 			out = []bookJSON{}

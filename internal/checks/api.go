@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"dbchecker/internal/dataset"
@@ -19,6 +21,7 @@ const (
 	msgPriceRange  = "minPrice가 maxPrice보다 높아서는 안됩니다"
 	minPrefixLen   = 10 // 잘린 제목을 허용할 때 필요한 최소 글자 수
 	maxTitlesShown = 5
+	priceTolerance = 0.005 // 소수점 둘째 자리까지 같으면 같은 가격
 )
 
 // response 는 서버 응답의 상태코드와 본문이다.
@@ -123,15 +126,62 @@ func stringValues(v any, out *[]string) {
 	}
 }
 
+// priceValues 는 값 안에서 가격으로 읽을 수 있는 것을 모두 모은다. 필드명은 보지 않는다.
+// 숫자(36.94)와 문자열("36.94", "£36.94", "Â£36.94") 둘 다 받는다.
+func priceValues(v any, out *[]float64) {
+	switch t := v.(type) {
+	case float64: // JSON 숫자는 Go 에서 항상 float64 로 읽힌다
+		*out = append(*out, t)
+	case string:
+		price, ok := parsePrice(t)
+		if ok {
+			*out = append(*out, price)
+		}
+	case map[string]any:
+		for _, field := range t {
+			priceValues(field, out)
+		}
+	case []any:
+		for _, field := range t {
+			priceValues(field, out)
+		}
+	}
+}
+
+// parsePrice 는 "£36.94" 같은 문자열에서 통화 기호와 공백을 떼고 숫자로 읽는다.
+// jsoup 으로 읽은 "£" 가 인코딩 문제로 "Â£" 가 되는 경우도 받는다.
+func parsePrice(s string) (float64, bool) {
+	s = strings.TrimSpace(s)
+	s = strings.TrimLeft(s, "£Â$€₩ ")
+	price, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, false
+	}
+	return price, true
+}
+
+// hasPrice 는 원소 안에 want 와 같은 가격 값이 있으면 true 다.
+func hasPrice(item any, want float64) bool {
+	var prices []float64
+	priceValues(item, &prices)
+	for _, p := range prices {
+		if math.Abs(p-want) < priceTolerance {
+			return true
+		}
+	}
+	return false
+}
+
 // listVerdict 는 응답 목록을 기대 목록과 비교한 결과다.
 type listVerdict struct {
-	Expected int
-	Missing  []string
-	Extra    []string // 중복·범위 밖·알 수 없는 원소 (설명 문자열)
+	Expected   int
+	Missing    []string
+	Extra      []string // 중복·범위 밖·알 수 없는 원소 (설명 문자열)
+	WrongPrice []string // 제목은 맞지만 가격 값이 없거나 다른 책 (설명 문자열)
 }
 
 func (v listVerdict) exact() bool {
-	return len(v.Missing) == 0 && len(v.Extra) == 0
+	return len(v.Missing) == 0 && len(v.Extra) == 0 && len(v.WrongPrice) == 0
 }
 
 // judgeList 는 응답 원소가 기대 책 목록과 정확히 같은 집합일 때만 통과시킨다.
@@ -145,6 +195,10 @@ func judgeList(expected []dataset.Book, all []dataset.Book, items []any) Result 
 		switch {
 		case idx >= 0:
 			used[idx] = true
+			book := expected[idx]
+			if !hasPrice(item, book.Price) {
+				v.WrongPrice = append(v.WrongPrice, fmt.Sprintf("%q(기대 %.2f)", shorten(book.Title, 40), book.Price))
+			}
 		case matchIndex(candidates, expected, nil) >= 0:
 			v.Extra = append(v.Extra, "중복: "+firstValue(candidates))
 		case matchesAny(candidates, all):
@@ -197,6 +251,9 @@ func (v listVerdict) describe() string {
 	}
 	if len(v.Extra) > 0 {
 		parts = append(parts, fmt.Sprintf("불필요 %d개: %s", len(v.Extra), strings.Join(limit(v.Extra), ", ")))
+	}
+	if len(v.WrongPrice) > 0 {
+		parts = append(parts, fmt.Sprintf("가격이 없거나 다름 %d권: %s", len(v.WrongPrice), strings.Join(limit(v.WrongPrice), ", ")))
 	}
 	return strings.Join(parts, "; ")
 }
