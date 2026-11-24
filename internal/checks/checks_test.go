@@ -264,6 +264,43 @@ func TestWrongServerFails(t *testing.T) {
 	}
 }
 
+// 무작위 검사는 10건 중 일부만 틀려도 실패이고, 몇 건이 틀렸는지 알려 줘야 한다.
+func TestRandomChecksRepeatAndCountFailures(t *testing.T) {
+	correct := fakestudent.Handler(loadData(t), fakestudent.Options{})
+	requests := 0
+	// 짝수 번째 요청에만 빈 배열을 주는 서버 → 10건 중 5건 실패
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if requests%2 == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+			return
+		}
+		correct.ServeHTTP(w, r)
+	}))
+	defer srv.Close()
+	env := newEnv(t, srv.URL)
+	for _, check := range []func(context.Context, *Env) Result{checkA2, checkA3} {
+		requests = 0
+		res := check(context.Background(), env)
+		if res.Passed || !strings.Contains(res.Detail, "10건 중 5건 실패") {
+			t.Errorf("10건 중 5건 실패로 보고해야 합니다: %s", res.Detail)
+		}
+		if requests != 10 {
+			t.Errorf("요청이 10번이어야 합니다: %d번", requests)
+		}
+	}
+}
+
+// 서버가 응답하지 않으면 10건을 다 기다리지 않고 첫 건에서 멈춘다.
+func TestRandomChecksStopWhenServerDoesNotRespond(t *testing.T) {
+	env := newEnv(t, "http://127.0.0.1:1") // 아무도 듣지 않는 포트
+	res := checkA2(context.Background(), env)
+	if res.Passed || !strings.Contains(res.Detail, "1건째에서 중단") {
+		t.Errorf("첫 건에서 중단해야 합니다: %s", res.Detail)
+	}
+}
+
 func messageServer(body string, status int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)

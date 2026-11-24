@@ -23,6 +23,7 @@ const (
 	minPrefixLen   = 10 // 잘린 제목을 허용할 때 필요한 최소 글자 수
 	maxTitlesShown = 5
 	priceTolerance = 0.005 // 소수점 둘째 자리까지 같으면 같은 가격
+	randomRounds   = 10    // 무작위 검사(A2, A3)를 반복하는 횟수. 모두 맞아야 통과다
 )
 
 // response 는 서버 응답의 상태코드와 본문이다.
@@ -326,23 +327,31 @@ func shorten(s string, n int) string {
 }
 
 // queryBooks 는 /books 를 호출해 원소 배열을 돌려준다. 200 이 아니거나 배열이 아니면 사유를 Result 로 돌려준다.
-func queryBooks(ctx context.Context, env *Env, category string, minPrice, maxPrice float64) ([]any, *Result) {
+// roundResult 는 질의 한 건의 결과다.
+// RequestFailed 는 서버 응답을 아예 받지 못했다는 뜻이다(시간 초과 등). 반복 중이면 남은 건을 건너뛴다.
+type roundResult struct {
+	Result
+	RequestFailed bool
+}
+
+func queryBooks(ctx context.Context, env *Env, category string, minPrice, maxPrice float64) ([]any, *roundResult) {
 	resp, err := fetch(ctx, env, "/books", booksQuery(category, minPrice, maxPrice))
 	if err != nil {
-		return nil, &Result{Detail: "요청 실패: " + err.Error()}
+		return nil, &roundResult{Result: Result{Detail: "요청 실패: " + err.Error()}, RequestFailed: true}
 	}
 	if resp.Status != http.StatusOK {
-		return nil, &Result{Detail: fmt.Sprintf("상태코드 %d (200 이어야 합니다): %s", resp.Status, shorten(string(resp.Body), 80))}
+		return nil, &roundResult{Result: Result{Detail: fmt.Sprintf("상태코드 %d (200 이어야 합니다): %s", resp.Status, shorten(string(resp.Body), 80))}}
 	}
 	items, err := extractItems(resp.Body)
 	if err != nil {
-		return nil, &Result{Detail: err.Error()}
+		return nil, &roundResult{Result: Result{Detail: err.Error()}}
 	}
 	return items, nil
 }
 
 // runListCase 는 A 검사 공통 흐름이다. 범위의 기대 목록과 정확히 같은지 본다.
-func runListCase(ctx context.Context, env *Env, category string, minPrice, maxPrice float64, prefix string) Result {
+func runListCase(ctx context.Context, env *Env, category string, minPrice, maxPrice float64) roundResult {
+	prefix := fmt.Sprintf("category=%s minPrice=%s maxPrice=%s: ", category, formatPrice(minPrice), formatPrice(maxPrice))
 	expected := env.Data.Query(category, minPrice, maxPrice)
 	items, failure := queryBooks(ctx, env, category, minPrice, maxPrice)
 	if failure != nil {
@@ -351,11 +360,41 @@ func runListCase(ctx context.Context, env *Env, category string, minPrice, maxPr
 	}
 	res := judgeList(expected, env.Data.Books, items)
 	res.Detail = prefix + res.Detail
-	return res
+	return roundResult{Result: res}
+}
+
+// repeatRandom 은 무작위 질의를 randomRounds 번 만들어 모두 맞아야 통과시킨다.
+// 서버 응답을 받지 못하면(건마다 10초 대기) 남은 건은 건너뛴다.
+func repeatRandom(env *Env, checkID string, one func() roundResult) Result {
+	tried, failed := 0, 0
+	firstFailure := ""
+	for i := 0; i < randomRounds; i++ {
+		r := one()
+		tried++
+		env.Log.Info("무작위 검사", "id", checkID, "round", i+1, "passed", r.Passed, "detail", r.Detail)
+		if r.Passed {
+			continue
+		}
+		failed++
+		if firstFailure == "" {
+			firstFailure = r.Detail
+		}
+		if r.RequestFailed {
+			break
+		}
+	}
+	prefix := fmt.Sprintf("[시드 %d] ", env.Seed)
+	if failed == 0 {
+		return Result{Passed: true, Detail: prefix + fmt.Sprintf("무작위 %d건 모두 통과", randomRounds)}
+	}
+	if tried < randomRounds {
+		return Result{Detail: prefix + fmt.Sprintf("서버 응답이 없어 %d건째에서 중단했습니다. %s", tried, firstFailure)}
+	}
+	return Result{Detail: prefix + fmt.Sprintf("%d건 중 %d건 실패. 첫 실패 %s", randomRounds, failed, firstFailure)}
 }
 
 func checkA1(ctx context.Context, env *Env) Result {
-	return runListCase(ctx, env, "Travel", 10, 30, "category=Travel minPrice=10 maxPrice=30: ")
+	return runListCase(ctx, env, "Travel", 10, 30).Result
 }
 
 // randomRange 는 임의 카테고리에서 서로 다른 가격 두 개를 골라 lo < hi 인 범위를 만든다.
@@ -390,14 +429,22 @@ func randomRange(env *Env) (category string, lo, hi float64) {
 }
 
 func checkA2(ctx context.Context, env *Env) Result {
-	category, lo, hi := randomRange(env)
-	prefix := fmt.Sprintf("[시드 %d] category=%s minPrice=%s maxPrice=%s: ", env.Seed, category, formatPrice(lo), formatPrice(hi))
-	return runListCase(ctx, env, category, lo, hi, prefix)
+	return repeatRandom(env, "A2", func() roundResult {
+		category, lo, hi := randomRange(env)
+		return runListCase(ctx, env, category, lo, hi)
+	})
 }
 
 func checkA3(ctx context.Context, env *Env) Result {
-	book := env.Data.Books[env.Rand.Intn(len(env.Data.Books))]
-	prefix := fmt.Sprintf("[시드 %d] category=%s 가격=%s 책=%q: ", env.Seed, book.Category, formatPrice(book.Price), book.Title)
+	return repeatRandom(env, "A3", func() roundResult {
+		book := env.Data.Books[env.Rand.Intn(len(env.Data.Books))]
+		return boundaryCase(ctx, env, book)
+	})
+}
+
+// boundaryCase 는 minPrice=maxPrice=책 가격으로 조회해 그 책이 들어 있는지 본다 (이상/이하).
+func boundaryCase(ctx context.Context, env *Env, book dataset.Book) roundResult {
+	prefix := fmt.Sprintf("category=%s 가격=%s 책=%q: ", book.Category, formatPrice(book.Price), book.Title)
 	items, failure := queryBooks(ctx, env, book.Category, book.Price, book.Price)
 	if failure != nil {
 		failure.Detail = prefix + failure.Detail
@@ -407,10 +454,10 @@ func checkA3(ctx context.Context, env *Env) Result {
 		var candidates []string
 		stringValues(item, &candidates)
 		if matchIndex(candidates, []dataset.Book{book}, nil) >= 0 {
-			return Result{Passed: true, Detail: prefix + "경계 가격의 책이 포함됨"}
+			return roundResult{Result: Result{Passed: true, Detail: prefix + "경계 가격의 책이 포함됨"}}
 		}
 	}
-	return Result{Detail: prefix + "minPrice=maxPrice 일 때 그 가격의 책이 빠졌습니다. 가격 비교를 >= 와 <= 로 하세요"}
+	return roundResult{Result: Result{Detail: prefix + "minPrice=maxPrice 일 때 그 가격의 책이 빠졌습니다. 가격 비교를 >= 와 <= 로 하세요"}}
 }
 
 // checkMessage 는 오류 응답 본문이 JSON 객체이고 message 가 문구와 정확히 같은지 본다.

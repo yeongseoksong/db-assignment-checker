@@ -51,8 +51,8 @@ var All = []Check{
 	{"D2", GroupDB, "DB 에 책 데이터 존재", checkD2},
 	{"D3", GroupDB, "DB 에 카테고리 50개 존재", checkD3},
 	{"A1", GroupAPI, "고정 케이스 Travel 10~30", checkA1},
-	{"A2", GroupAPI, "무작위 카테고리와 가격 범위", checkA2},
-	{"A3", GroupAPI, "가격 경계값 포함(이상/이하)", checkA3},
+	{"A2", GroupAPI, "무작위 카테고리와 가격 범위 (10건)", checkA2},
+	{"A3", GroupAPI, "가격 경계값 포함, 이상/이하 (10건)", checkA3},
 	{"E1", GroupErrors, "존재하지 않는 카테고리 메시지", checkE1},
 	{"E2", GroupErrors, "minPrice > maxPrice 메시지", checkE2},
 }
