@@ -231,36 +231,31 @@ func TestExtractItems(t *testing.T) {
 	}
 }
 
-func TestCorrectServerPassesAllDynamicChecks(t *testing.T) {
-	variants := map[string]fakestudent.Options{
-		"기본":     {},
-		"객체로 감쌈": {WrapInObject: true, TitleField: "bookTitle"},
-		"제목 잘림":  {TruncateTitles: true, TitleField: "name"},
-		"가격 문자열": {PriceAsString: true},
-	}
-	for name, opt := range variants {
-		t.Run(name, func(t *testing.T) {
-			srv := httptest.NewServer(fakestudent.Handler(loadData(t), opt))
+// 가짜 서버 변형마다 실패해야 하는 검사만 정확히 실패하는지 본다. 시드를 바꿔 여러 번 돌린다.
+func TestVariantsFailExactlyExpectedChecks(t *testing.T) {
+	ds := loadData(t)
+	for _, v := range fakestudent.Variants {
+		t.Run(v.Name, func(t *testing.T) {
+			srv := httptest.NewServer(fakestudent.Handler(ds, v.Options))
 			defer srv.Close()
-			outcomes := RunAll(context.Background(), newEnv(t, srv.URL), nil)
-			for _, o := range outcomes {
-				if (o.Check.Group == GroupAPI || o.Check.Group == GroupErrors) && !o.Passed() {
-					t.Errorf("%s 가 통과하지 못했습니다: %+v", o.Check.ID, o.Result)
+			want := map[string]bool{}
+			for _, id := range v.ExpectFail {
+				want[id] = true
+			}
+			for seed := int64(1); seed <= 5; seed++ {
+				env := newEnv(t, srv.URL)
+				env.Seed = seed
+				env.Rand = rand.New(rand.NewSource(seed))
+				for _, o := range RunAll(context.Background(), env, nil) {
+					if o.Check.Group == GroupDB {
+						continue
+					}
+					if o.Passed() == want[o.Check.ID] {
+						t.Errorf("시드 %d %s: 통과=%v 여야 하는데 %v (%s)", seed, o.Check.ID, !want[o.Check.ID], o.Passed(), o.Result.Detail)
+					}
 				}
 			}
 		})
-	}
-}
-
-func TestWrongServerFails(t *testing.T) {
-	srv := httptest.NewServer(fakestudent.Handler(loadData(t), fakestudent.Options{ExcludeBoundary: true, WrongMessage: true}))
-	defer srv.Close()
-	p := passedMap(RunAll(context.Background(), newEnv(t, srv.URL), nil))
-	if p["A3"] {
-		t.Error("경계 미포함은 A3 실패여야 합니다")
-	}
-	if p["E1"] || p["E2"] {
-		t.Error("메시지가 다르면 E 검사는 실패여야 합니다")
 	}
 }
 

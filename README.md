@@ -65,6 +65,17 @@ go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 ./checker-macos -id 20231234 -db "jdbc:postgresql://ep-xxx.neon.tech/neondb" -db-user neondb_owner -port 8080
 ```
 
+## 채점기 시험해 보기
+
+학생 서버 대신 가짜 서버를 띄워 채점기가 제대로 잡아내는지 볼 수 있습니다. `-bug` 로 일부러 틀린 버전을 고릅니다.
+
+```sh
+go run ./testdata/fakeserver -list            # 버전 목록과 실패해야 하는 검사
+go run ./testdata/fakeserver -bug boundary    # :8080 에 경계값을 빠뜨리는 서버
+```
+
+다른 터미널에서 채점기를 포트 8080 으로 실행합니다. 가짜 서버는 DB 를 쓰지 않으므로 D1~D3 는 실패로 나옵니다.
+
 ## 참고
 
 - DB 비밀번호는 로그와 결과 어디에도 남지 않습니다.
