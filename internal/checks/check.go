@@ -27,6 +27,8 @@ type Env struct {
 	Seed    int64 // Rand 의 시드. A2/A3 detail 에 남겨 재현할 수 있게 한다.
 	// DBURL 은 Neon 연결 문자열이다. 비밀번호가 들어 있으므로 로그·CSV·화면에 그대로 쓰지 않는다.
 	DBURL string
+	// DBSchema 는 D 검사가 테이블을 찾을 스키마다.
+	DBSchema string
 
 	db *dbSnapshot // D1 이 채우고 D2/D3 가 쓴다.
 }

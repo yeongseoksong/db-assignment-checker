@@ -142,6 +142,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 		DBAddress:  r.PostFormValue("db"),
 		DBUser:     r.PostFormValue("dbuser"),
 		DBPassword: r.PostFormValue("dbpass"),
+		DBSchema:   r.PostFormValue("dbschema"),
 		Port:       r.PostFormValue("port"),
 	})
 	if err != nil {

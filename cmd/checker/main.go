@@ -45,6 +45,7 @@ func run() int {
 	flag.StringVar(&in.StudentID, "id", "", "학번 (영문/숫자)")
 	flag.StringVar(&in.DBAddress, "db", "", "Neon 주소 (jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require)")
 	flag.StringVar(&in.DBUser, "db-user", "", "DB 사용자명")
+	flag.StringVar(&in.DBSchema, "db-schema", "", "테이블이 있는 스키마 (비우면 주소의 currentSchema, 그것도 없으면 public)")
 	flag.StringVar(&in.DBPassword, "db-password", "", "DB 비밀번호 (비우면 PGPASSWORD 환경변수, 그것도 없으면 물어봄)")
 	flag.StringVar(&in.Port, "port", strconv.Itoa(app.DefaultPort), "스프링 서버가 떠 있는 로컬 포트")
 	flag.StringVar(&outDir, "out", "", "결과 파일을 저장할 폴더 (기본: 실행 파일 옆 results 폴더)")

@@ -127,6 +127,24 @@ func TestRunWritesEncryptedResultWithoutLeakingPassword(t *testing.T) {
 	}
 }
 
+func TestResolveDBSchema(t *testing.T) {
+	cases := []struct{ name, field, address, want string }{
+		{"입력칸 우선", " bookstore ", "jdbc:postgresql://h/db?currentSchema=other", "bookstore"},
+		{"주소의 currentSchema", "", "jdbc:postgresql://h/db?currentSchema=bookstore&sslmode=require", "bookstore"},
+		{"currentSchema 목록이면 첫 번째", "", "jdbc:postgresql://h/db?currentSchema=bookstore,public", "bookstore"},
+		{"둘 다 없으면 public", "", "jdbc:postgresql://h/db?sslmode=require", "public"},
+		{"쿼리 없음", "", "h/db", "public"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := ResolveDBSchema(c.field, c.address)
+			if got != c.want {
+				t.Errorf("got %q want %q", got, c.want)
+			}
+		})
+	}
+}
+
 func TestNormalizeDBAddress(t *testing.T) {
 	cases := []struct {
 		name, address, user, password string

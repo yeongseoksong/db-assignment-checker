@@ -21,7 +21,7 @@ const (
 	bookMatchRatio   = 0.95
 )
 
-// dbColumn 은 public 스키마 텍스트 컬럼 하나와 읽어 온 값(중복 제거, 최대 5000개)이다.
+// dbColumn 은 검사 대상 스키마의 텍스트 컬럼 하나와 읽어 온 값(중복 제거, 최대 5000개)이다.
 type dbColumn struct {
 	Schema, Table, Column string
 	Values                []string
@@ -87,8 +87,8 @@ func describeDBError(err error, rawURL string) string {
 	return "연결에 실패했습니다: " + msg
 }
 
-// loadSnapshot 은 읽기 전용 트랜잭션으로 연결해 public 스키마의 텍스트 컬럼 값을 읽는다.
-func loadSnapshot(ctx context.Context, connString string) (*dbSnapshot, error) {
+// loadSnapshot 은 읽기 전용 트랜잭션으로 연결해 schema 의 텍스트 컬럼 값을 읽는다.
+func loadSnapshot(ctx context.Context, connString, schema string) (*dbSnapshot, error) {
 	conn, err := pgx.Connect(ctx, connString)
 	if err != nil {
 		return nil, err
@@ -100,17 +100,15 @@ func loadSnapshot(ctx context.Context, connString string) (*dbSnapshot, error) {
 	}
 	defer tx.Rollback(context.Background())
 
-	// 학생이 currentSchema 로 public 이 아닌 스키마를 썼을 수 있으므로 시스템 스키마를 뺀 모든 스키마를 본다.
 	const listColumns = `
 		SELECT c.table_schema, c.table_name, c.column_name
 		FROM information_schema.columns c
 		JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-		WHERE c.table_schema NOT IN ('information_schema', 'pg_catalog')
-		  AND c.table_schema NOT LIKE 'pg\_%'
+		WHERE c.table_schema = $1
 		  AND t.table_type = 'BASE TABLE'
 		  AND c.data_type IN ('text', 'character varying', 'character')
 		ORDER BY c.table_schema, c.table_name, c.ordinal_position`
-	rows, err := tx.Query(ctx, listColumns)
+	rows, err := tx.Query(ctx, listColumns, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +192,7 @@ func countTitleMatches(values []string, books []dataset.Book) int {
 // judgeBooksInDB 는 데이터셋 책의 95% 이상과 일치하는 텍스트 컬럼이 있으면 통과시킨다.
 func judgeBooksInDB(columns []dbColumn, books []dataset.Book) Result {
 	if len(columns) == 0 {
-		return Result{Detail: "public 스키마에 text/varchar 컬럼이 있는 테이블이 없습니다. 크롤링한 책을 테이블에 저장했는지 확인하세요"}
+		return Result{Detail: "지정한 스키마에 text/varchar 컬럼이 있는 테이블이 없습니다. 스키마 이름과, 크롤링한 책을 테이블에 저장했는지 확인하세요"}
 	}
 	best, bestCount := "", -1
 	for _, col := range columns {
@@ -234,7 +232,7 @@ func judgeCategoriesInDB(columns []dbColumn, categories []string) Result {
 		}
 	}
 	if best == "" {
-		return Result{Detail: "public 스키마에 text/varchar 컬럼이 있는 테이블이 없습니다"}
+		return Result{Detail: "지정한 스키마에 text/varchar 컬럼이 있는 테이블이 없습니다"}
 	}
 	found := len(categories) - len(bestMissing)
 	detail := fmt.Sprintf("%s 컬럼에 카테고리 %d/%d개", best, found, len(categories))
@@ -250,15 +248,18 @@ func checkD1(ctx context.Context, env *Env) Result {
 	ctx, cancel := context.WithTimeout(ctx, dbConnectTimeout)
 	defer cancel()
 	start := time.Now()
-	snap, err := loadSnapshot(ctx, env.DBURL)
+	snap, err := loadSnapshot(ctx, env.DBURL, env.DBSchema)
 	if err != nil {
 		friendly := describeDBError(err, env.DBURL)
 		env.Log.Debug("DB 연결 실패", "db", RedactURL(env.DBURL), "err", scrubPassword(err.Error(), env.DBURL))
 		return Result{Detail: friendly}
 	}
 	env.db = snap
-	env.Log.Debug("DB 읽기 완료", "db", RedactURL(env.DBURL), "columns", len(snap.Columns), "elapsed", time.Since(start))
-	return Result{Passed: true, Detail: fmt.Sprintf("연결 성공 (텍스트 컬럼 %d개 확인)", len(snap.Columns))}
+	env.Log.Debug("DB 읽기 완료", "db", RedactURL(env.DBURL), "schema", env.DBSchema, "columns", len(snap.Columns), "elapsed", time.Since(start))
+	if len(snap.Columns) == 0 {
+		return Result{Passed: true, Detail: fmt.Sprintf("연결 성공. 그런데 스키마 %q 에 테이블이 없습니다. 입력 창의 스키마 칸을 확인하세요", env.DBSchema)}
+	}
+	return Result{Passed: true, Detail: fmt.Sprintf("연결 성공 (스키마 %s, 텍스트 컬럼 %d개 확인)", env.DBSchema, len(snap.Columns))}
 }
 
 func checkD2(_ context.Context, env *Env) Result {

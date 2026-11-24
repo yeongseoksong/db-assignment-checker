@@ -168,6 +168,11 @@
       <span>DB 비밀번호</span>
       <input type="password" name="dbpass" autocomplete="off">
     </label>
+    <label class="field wide">
+      <span>스키마</span>
+      <input type="text" name="dbschema" autocomplete="off" placeholder="public">
+      <small>책·카테고리 테이블이 있는 스키마. 비우면 Neon 주소의 currentSchema, 그것도 없으면 public</small>
+    </label>
   </div>
   <div class="actions">
     <button id="start" class="primary" type="submit">검사 시작</button>

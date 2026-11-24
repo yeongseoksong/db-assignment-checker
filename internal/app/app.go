@@ -40,6 +40,7 @@ type Input struct {
 	DBAddress  string // Neon 주소 (jdbc:postgresql://..., postgresql://..., 호스트/DB 이름만 등)
 	DBUser     string
 	DBPassword string // 기록 금지
+	DBSchema   string // 책·카테고리 테이블이 있는 스키마. 비우면 주소의 currentSchema, 그것도 없으면 public
 	Port       string // 1~65535 정수 (문자열 그대로 받아 Validate 에서 검증)
 
 	// DBURL 은 Validate 가 만든 정규화된 연결 문자열이다 (비밀번호 포함, 기록 금지).
@@ -66,6 +67,10 @@ func Validate(in Input) (Input, error) {
 			return in, err
 		}
 		in.DBURL = dbURL
+		in.DBSchema = ResolveDBSchema(in.DBSchema, in.DBAddress)
+		if len(in.DBSchema) > 63 {
+			return in, errors.New("스키마 이름이 너무 깁니다 (63자 이하)")
+		}
 	}
 	if in.Port == "" {
 		in.Port = strconv.Itoa(DefaultPort)
@@ -76,6 +81,27 @@ func Validate(in Input) (Input, error) {
 	}
 	in.Port = strconv.Itoa(port)
 	return in, nil
+}
+
+// ResolveDBSchema 는 검사할 스키마를 정한다 (순수 함수).
+// 입력칸 값이 우선이고, 비어 있으면 JDBC 주소의 currentSchema(쉼표 목록이면 첫 번째), 그것도 없으면 public 이다.
+func ResolveDBSchema(field, address string) string {
+	schema := strings.TrimSpace(field)
+	if schema != "" {
+		return schema
+	}
+	_, rawQuery, found := strings.Cut(address, "?")
+	if found {
+		query, err := url.ParseQuery(rawQuery)
+		if err == nil {
+			first, _, _ := strings.Cut(query.Get("currentSchema"), ",")
+			first = strings.TrimSpace(first)
+			if first != "" {
+				return first
+			}
+		}
+	}
+	return "public"
 }
 
 // keptDBParams 는 pgx 가 이해하는 접속 파라미터 중 학생 주소에 들어 있을 만한 것들이다.
@@ -131,7 +157,7 @@ func NormalizeDBAddress(address, user, password string) (string, error) {
 	}
 	for key := range query {
 		if !keptDBParams[key] {
-			query.Del(key) // currentSchema 등. 스키마는 D 검사가 모든 스키마를 훑으므로 필요 없다.
+			query.Del(key) // currentSchema 등. 스키마는 ResolveDBSchema 가 따로 읽는다.
 		}
 	}
 	if !query.Has("sslmode") {
@@ -177,14 +203,14 @@ func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome))
 	// 연결 문자열은 반드시 가려서 기록한다.
 	log.Info("채점 시작", "version", cfg.Version, "os", runtime.GOOS+"/"+runtime.GOARCH,
 		"student_id", in.StudentID, "url", in.BaseURL(),
-		"db", checks.RedactURL(in.DBURL), "seed", seed)
+		"db", checks.RedactURL(in.DBURL), "schema", in.DBSchema, "seed", seed)
 
 	data, err := dataset.Load()
 	if err != nil {
 		return nil, err
 	}
 	env := &checks.Env{
-		BaseURL: in.BaseURL(), Data: data, Log: log, Seed: seed, DBURL: in.DBURL,
+		BaseURL: in.BaseURL(), Data: data, Log: log, Seed: seed, DBURL: in.DBURL, DBSchema: in.DBSchema,
 		HTTP: checks.NewHTTPClient(log), Rand: rand.New(rand.NewSource(seed)),
 	}
 

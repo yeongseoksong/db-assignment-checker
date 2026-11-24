@@ -10,7 +10,7 @@ Spring Boot + jsoup 로 `books.toscrape.com` 을 스크레이핑해 Neon Postgre
 | ID | 그룹 | 내용 |
 |---|---|---|
 | D1 | DB | Neon 연결 성공 (15초 제한, 읽기 전용 트랜잭션) |
-| D2 | DB | public 스키마의 텍스트 컬럼 중 하나가 데이터셋 책 제목 1000권의 95% 이상과 일치 |
+| D2 | DB | 지정한 스키마(기본 public)의 텍스트 컬럼 중 하나가 데이터셋 책 제목 1000권의 95% 이상과 일치 |
 | D3 | DB | 텍스트 컬럼 하나에 카테고리 50개가 모두 존재 (대소문자·공백 무시) |
 | A1 | API | `category=Travel&minPrice=10&maxPrice=30` 결과가 기대 집합과 정확히 같음 |
 | A2 | API | 무작위 카테고리와 가격 범위의 결과가 기대 집합과 정확히 같음 |
@@ -60,13 +60,14 @@ go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -ou
 
 ### 창 모드 (기본)
 
-`checker` 를 더블클릭하거나 인자 없이 실행하면 브라우저에 입력 창이 열립니다. 입력은 아래 다섯 칸입니다.
+`checker` 를 더블클릭하거나 인자 없이 실행하면 브라우저에 입력 창이 열립니다. 입력은 아래 여섯 칸입니다.
 
 1. 학번 (영문, 숫자만)
 2. Neon 주소: `application.properties` 의 `spring.datasource.url` 값 (`jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require`). `jdbc:` 접두사, `postgresql://` 스킴, 스킴 없는 `호스트/DB이름` 모두 가능하고 `sslmode` 가 없으면 `require` 를 붙입니다.
 3. DB 사용자명 (`spring.datasource.username`)
 4. DB 비밀번호 (`spring.datasource.password`)
-5. 로컬 포트 (기본 8080)
+5. 스키마 (선택): 책·카테고리 테이블이 있는 스키마. 비우면 Neon 주소의 `currentSchema` 값, 그것도 없으면 `public` 입니다. 명령줄에서는 `-db-schema`.
+6. 로컬 포트 (기본 8080)
 
 [검사 시작]을 누르면 검사별 ✔/✘ 와 이유, 생성된 제출 zip 경로가 같은 화면에 나옵니다. 끝나면 [종료]를 누르거나 창을 닫으세요. 10분 동안 아무 입력이 없으면 자동으로 종료됩니다. 입력 창은 `127.0.0.1` 에서만 열립니다. 브라우저가 열리지 않으면 콘솔에 나온 주소를 직접 붙여넣으세요 (`-no-browser` 로 자동 열기를 끌 수 있습니다).
 
