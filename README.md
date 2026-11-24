@@ -71,14 +71,14 @@ go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -ou
 `-id`, `-db`, `-db-user`, `-port` 를 모두 주거나 `-cli` 를 주면 브라우저 없이 콘솔에서 실행합니다. 빠진 값은 물어봅니다.
 
 ```sh
-./checker-macos -id 20231234 -db "jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require" -db-user neondb_owner -port 8080 -out ./results
+./checker-macos -id 20231234 -db "jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require" -db-user neondb_owner -port 8080
 ```
 
 비밀번호는 `-db-password` 로 주거나 `PGPASSWORD` 환경변수로 넘깁니다. 둘 다 없으면 물어보며, 이때 입력이 화면에 보입니다. 명령줄 모드는 종료 전에 "엔터를 누르면 종료합니다" 를 띄웁니다 (`-no-pause` 로 끔).
 
 ### 결과 파일
 
-`-out`(기본 `./results`)에 두 파일이 생깁니다.
+실행 파일과 같은 폴더의 `results` 폴더에 두 파일이 생깁니다 (`-out` 으로 바꿀 수 있음). 결과 화면에 전체 경로가 나옵니다.
 
 - `result_<학번>_<yyyyMMdd-HHmmss>.enc`: **이 파일을 제출합니다.** 암호화되어 있어 학생은 열 수 없습니다.
 - `checker_<학번>_<yyyyMMdd-HHmmss>.log`: 평문 로그. 시작 정보, 요청 URL·상태코드·응답 본문(2KB까지), 검사 결과, 무작위 시드가 있습니다.

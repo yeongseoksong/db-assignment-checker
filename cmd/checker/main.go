@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -46,7 +47,7 @@ func run() int {
 	flag.StringVar(&in.DBUser, "db-user", "", "DB 사용자명")
 	flag.StringVar(&in.DBPassword, "db-password", "", "DB 비밀번호 (비우면 PGPASSWORD 환경변수, 그것도 없으면 물어봄)")
 	flag.StringVar(&in.Port, "port", strconv.Itoa(app.DefaultPort), "스프링 서버가 떠 있는 로컬 포트")
-	flag.StringVar(&outDir, "out", "./results", "결과 파일을 저장할 폴더")
+	flag.StringVar(&outDir, "out", "", "결과 파일을 저장할 폴더 (기본: 실행 파일 옆 results 폴더)")
 	flag.BoolVar(&cliMode, "cli", false, "브라우저 없이 콘솔에서 실행")
 	flag.BoolVar(&noBrowser, "no-browser", false, "창 모드에서 브라우저를 자동으로 열지 않음")
 	flag.BoolVar(&noPause, "no-pause", false, "종료 전에 엔터를 기다리지 않음 (명령줄 모드)")
@@ -77,7 +78,12 @@ func run() int {
 }
 
 func loadConfig(outDir string) (app.Config, error) {
-	cfg := app.Config{Version: version, OutDir: outDir}
+	cfg := app.Config{Version: version}
+	resolved, err := resolveOutDir(outDir)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.OutDir = resolved
 	if publicKeyB64 == "" || hmacSecretB64 == "" {
 		return cfg, errors.New("교수자용으로 빌드되지 않은 바이너리입니다. 교수자가 배포한 checker 파일을 사용하세요")
 	}
@@ -94,6 +100,24 @@ func loadConfig(outDir string) (app.Config, error) {
 		return cfg, fmt.Errorf("내장 HMAC 키가 손상되었습니다. 교수자에게 문의하세요: %w", err)
 	}
 	return cfg, nil
+}
+
+// resolveOutDir 는 결과 폴더를 절대 경로로 정한다.
+// 기본값은 실행 파일 옆 results 폴더다. macOS 에서 더블클릭하면 작업 폴더가 홈 폴더가 되므로
+// 작업 폴더 기준으로 두면 학생이 파일을 찾지 못한다.
+func resolveOutDir(outDir string) (string, error) {
+	if outDir == "" {
+		exe, err := os.Executable()
+		if err != nil {
+			return "", fmt.Errorf("실행 파일 위치를 알 수 없습니다. -out 으로 결과 폴더를 지정하세요: %w", err)
+		}
+		outDir = filepath.Join(filepath.Dir(exe), "results")
+	}
+	abs, err := filepath.Abs(outDir)
+	if err != nil {
+		return "", fmt.Errorf("결과 폴더 경로 %q 가 올바르지 않습니다: %w", outDir, err)
+	}
+	return abs, nil
 }
 
 // ---- 명령줄 모드 ----
