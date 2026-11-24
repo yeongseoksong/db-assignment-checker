@@ -27,6 +27,9 @@ dist:
 		echo "빌드: $$out"; \
 		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 go build -trimpath -ldflags "$$LDFLAGS" -o "$$out" ./cmd/checker || exit 1; \
 	done
+	@# Apple Silicon 과 Intel 용을 유니버설 바이너리 하나로 합친다 (학생이 CPU 를 고를 필요 없음).
+	lipo -create -output dist/checker-macos dist/checker-darwin-arm64 dist/checker-darwin-amd64
+	rm dist/checker-darwin-arm64 dist/checker-darwin-amd64
 
 clean:
 	rm -rf dist

@@ -34,7 +34,7 @@ make dist      # dist/ 에 4개 플랫폼 바이너리 생성 (공개키와 HMAC
 ```
 
 1. `keys/` 는 git 에 올라가지 않습니다. `private.key` 를 잃으면 받은 `.enc` 를 열 수 없으니 따로 백업하세요.
-2. `dist/` 의 바이너리를 학생에게 배포합니다 (`checker-darwin-arm64`, `checker-darwin-amd64`, `checker-windows-amd64.exe`, `checker-linux-amd64`).
+2. `dist/` 의 바이너리를 학생에게 배포합니다 (`checker-macos` (Apple Silicon·Intel 공용), `checker-windows-amd64.exe`, `checker-linux-amd64`).
 3. 제출 기한 뒤 복호화·병합합니다.
 
 ```sh
@@ -71,7 +71,7 @@ go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -ou
 `-id`, `-db`, `-db-user`, `-port` 를 모두 주거나 `-cli` 를 주면 브라우저 없이 콘솔에서 실행합니다. 빠진 값은 물어봅니다.
 
 ```sh
-./checker-darwin-arm64 -id 20231234 -db "jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require" -db-user neondb_owner -port 8080 -out ./results
+./checker-macos -id 20231234 -db "jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require" -db-user neondb_owner -port 8080 -out ./results
 ```
 
 비밀번호는 `-db-password` 로 주거나 `PGPASSWORD` 환경변수로 넘깁니다. 둘 다 없으면 물어보며, 이때 입력이 화면에 보입니다. 명령줄 모드는 종료 전에 "엔터를 누르면 종료합니다" 를 띄웁니다 (`-no-pause` 로 끔).
@@ -90,9 +90,9 @@ DB 비밀번호는 화면, 로그, 결과 파일 어디에도 남지 않습니�
 내려받은 파일은 격리 속성이 붙어 실행이 거부될 수 있습니다.
 
 ```sh
-xattr -d com.apple.quarantine ./checker-darwin-arm64
-chmod +x ./checker-darwin-arm64
-./checker-darwin-arm64
+xattr -d com.apple.quarantine ./checker-macos
+chmod +x ./checker-macos
+./checker-macos
 ```
 
 ### Windows
