@@ -6,140 +6,111 @@
 <link rel="icon" href="data:,">
 <title>DB 과제 채점기</title>
 <style>
+  /* 학생 안내문과 같은 색·글꼴. 오프라인에서도 열려야 하므로 외부 글꼴 없이 시스템 글꼴만 쓴다. */
   :root {
-    color-scheme: light dark;
-    --bg: #f5f6f8;
-    --card: #ffffff;
-    --text: #1f2328;
-    --muted: #656d76;
-    --border: #d8dee4;
-    --accent: #2f6feb;
-    --accent-hover: #1f5bd1;
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --fg: #1c2330;
+    --muted: #5b6577;
+    --line: #dde2ea;
+    --accent: #1f6f78;
+    --accent-hover: #185a62;
+    --accent-soft: #e3f1f2;
     --ok: #1a7f37;
-    --ok-bg: #e6f4ea;
-    --ng: #cf222e;
-    --ng-bg: #fdecec;
-    --code-bg: #f0f2f5;
-    --shadow: 0 1px 3px rgba(31, 35, 40, .08), 0 8px 24px rgba(31, 35, 40, .06);
+    --ok-soft: #e6f4ea;
+    --ng: #b42318;
+    --ng-soft: #fdecea;
+    --code-bg: #eef1f5;
+    --font-body: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif;
+    --font-mono: "SF Mono", Menlo, Consolas, "D2Coding", ui-monospace, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0d1117;
-      --card: #161b22;
-      --text: #e6edf3;
-      --muted: #8d96a0;
-      --border: #30363d;
-      --accent: #2f6feb;
-      --accent-hover: #4c8dff;
-      --ok: #3fb950;
-      --ok-bg: #12261a;
-      --ng: #f85149;
-      --ng-bg: #2d1416;
-      --code-bg: #21262d;
-      --shadow: none;
+      --bg: #11151b; --surface: #181e26; --fg: #e4e8ee; --muted: #98a2b3; --line: #2a323d;
+      --accent: #2c8a94; --accent-hover: #379ea9; --accent-soft: #15292c;
+      --ok: #4ac26b; --ok-soft: #13261a; --ng: #f47067; --ng-soft: #2d1614; --code-bg: #222a35;
+      color-scheme: dark;
     }
   }
 
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: "Pretendard", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-    line-height: 1.5;
-  }
-  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; display: flex; flex-direction: column; gap: 24px; }
 
-  header h1 { margin: 0 0 6px; font-size: 1.6rem; letter-spacing: -.01em; }
-  header p { margin: 0 0 24px; color: var(--muted); font-size: .95rem; }
+  header h1 { margin: 0 0 6px; font-size: 1.75rem; line-height: 1.3; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 62ch; }
 
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: var(--shadow);
-    padding: 24px;
-  }
-  .card + .card { margin-top: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 24px; }
 
-  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
-  .field { display: flex; flex-direction: column; gap: 6px; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 20px; }
+  .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .field.wide { grid-column: 1 / -1; }
-  .field span { font-weight: 600; font-size: .9rem; }
-  .field small { color: var(--muted); font-size: .8rem; }
+  .field span { font-weight: 600; font-size: 0.9rem; }
+  .field small { color: var(--muted); font-size: 0.8rem; }
+  .field small code { font-size: 0.95em; }
   input {
-    width: 100%;
-    padding: 10px 12px;
-    font: inherit;
-    font-size: .95rem;
-    color: var(--text);
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    width: 100%; padding: 10px 12px; font: inherit; font-size: 0.95rem;
+    color: var(--fg); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px;
     transition: border-color .15s, box-shadow .15s;
   }
+  input[name=db], input[name=dbschema], input[name=port] { font-family: var(--font-mono); font-size: 0.88rem; }
   input::placeholder { color: var(--muted); opacity: .7; }
-  input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
   .actions { display: flex; gap: 10px; margin-top: 24px; }
   button {
-    font: inherit;
-    font-weight: 600;
-    padding: 10px 20px;
-    border-radius: 8px;
-    cursor: pointer;
-    border: 1px solid var(--border);
-    background: var(--card);
-    color: var(--text);
+    font: inherit; font-weight: 600; padding: 10px 20px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); border-bottom-width: 2px; background: var(--surface); color: var(--fg);
     transition: background .15s, border-color .15s;
   }
   button:hover { border-color: var(--muted); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; flex: 1; }
-  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { flex: 1; background: var(--accent); border-color: var(--accent-hover); color: #fff; }
+  button.primary:hover { background: var(--accent-hover); }
   button:disabled { cursor: wait; opacity: .6; }
 
+  code { font-family: var(--font-mono); font-size: 0.85em; background: var(--code-bg); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+
   #result:empty { display: none; }
-  .summary { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
   .summary h2 { margin: 0; font-size: 1.15rem; }
-  .badge { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: .9rem; }
-  .badge.ok { background: var(--ok-bg); color: var(--ok); }
-  .badge.ng { background: var(--ng-bg); color: var(--ng); }
+  .badge { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 0.9rem; font-family: var(--font-mono); }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.ng { background: var(--ng-soft); color: var(--ng); }
 
   .checks { list-style: none; margin: 0; padding: 0; }
-  .check { display: grid; grid-template-columns: 28px 1fr; gap: 2px 10px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .check { display: grid; grid-template-columns: 28px 1fr; gap: 2px 12px; padding: 12px 0; border-top: 1px solid var(--line); }
   .icon {
-    grid-row: span 2;
-    width: 24px; height: 24px;
-    border-radius: 50%;
-    display: grid; place-items: center;
-    font-size: .8rem; font-weight: 700;
+    grid-row: span 2; width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; margin-top: 1px;
   }
-  .icon.ok { background: var(--ok-bg); color: var(--ok); }
-  .icon.ng { background: var(--ng-bg); color: var(--ng); }
-  .title { font-weight: 600; }
-  .tag { color: var(--muted); font-weight: 500; font-size: .8rem; margin-right: 6px; }
-  .detail { color: var(--muted); font-size: .85rem; word-break: break-all; }
+  .icon.ok { background: var(--ok-soft); color: var(--ok); }
+  .icon.ng { background: var(--ng-soft); color: var(--ng); }
+  .title { font-weight: 600; min-width: 0; }
+  .tag { font-family: var(--font-mono); color: var(--muted); font-weight: 500; font-size: 0.78rem; margin-right: 8px; letter-spacing: 0.02em; }
+  .detail { color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.55; overflow-wrap: anywhere; min-width: 0; }
 
-  .files { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: .9rem; }
-  .files p { margin: 6px 0; }
+  .files { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; }
+  .files p { margin: 0; }
   .hint { color: var(--muted); }
-  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: .85em; word-break: break-all; }
 
-  .notice { padding: 12px 14px; border-radius: 8px; margin: 0; }
-  .notice.error { background: var(--ng-bg); color: var(--ng); font-weight: 600; }
-  .notice.wait { color: var(--muted); }
+  .notice { margin: 0; padding: 12px 16px; border-radius: 0 6px 6px 0; }
+  .notice.error { border-left: 3px solid var(--ng); background: var(--ng-soft); color: var(--ng); font-weight: 600; }
+  .notice.wait { border-left: 3px solid var(--accent); background: var(--accent-soft); color: var(--accent); }
 
   @media (max-width: 560px) {
     .fields { grid-template-columns: 1fr; }
     .card { padding: 18px; }
   }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <main>
 <header>
   <h1>DB 과제 채점기</h1>
-  <p>스프링 서버를 먼저 실행한 뒤 아래 값을 입력하고 [검사 시작]을 누르세요. 입력한 값은 이 컴퓨터 안에서만 쓰이고, DB 비밀번호는 결과 파일과 로그에 남지 않습니다.</p>
+  <p>Spring 서버를 먼저 실행한 뒤 값을 입력하고 [검사 시작]을 누르세요. 입력한 값은 이 컴퓨터 안에서만 쓰이고, DB 비밀번호는 결과 파일과 로그에 남지 않습니다.</p>
 </header>
 
 <form id="form" class="card">
@@ -147,31 +118,33 @@
   <div class="fields">
     <label class="field">
       <span>학번</span>
-      <input type="text" name="id" autocomplete="off" required>
+      <input type="text" id="id" name="id" autocomplete="off" required>
       <small>영문과 숫자만</small>
     </label>
     <label class="field">
       <span>로컬 포트</span>
-      <input type="number" name="port" value="8080" min="1" max="65535" required>
-      <small>스프링 서버가 떠 있는 포트 (기본 8080)</small>
+      <input type="number" id="port" name="port" value="8080" min="1" max="65535" required>
+      <small>Spring 서버 포트 (보통 8080)</small>
     </label>
     <label class="field wide">
       <span>Neon 주소</span>
-      <input type="text" name="db" autocomplete="off" placeholder="jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require">
-      <small>application.properties 의 spring.datasource.url 값</small>
+      <input type="text" id="db" name="db" autocomplete="off" placeholder="jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require">
+      <small><code>spring.datasource.url</code> 값을 그대로 붙여넣기</small>
     </label>
     <label class="field">
       <span>DB 사용자명</span>
-      <input type="text" name="dbuser" autocomplete="off">
+      <input type="text" id="dbuser" name="dbuser" autocomplete="off">
+      <small><code>spring.datasource.username</code></small>
     </label>
     <label class="field">
       <span>DB 비밀번호</span>
-      <input type="password" name="dbpass" autocomplete="off">
+      <input type="password" id="dbpass" name="dbpass" autocomplete="off">
+      <small><code>spring.datasource.password</code></small>
     </label>
     <label class="field wide">
-      <span>스키마</span>
-      <input type="text" name="dbschema" autocomplete="off" placeholder="public">
-      <small>책·카테고리 테이블이 있는 스키마. 비우면 Neon 주소의 currentSchema, 그것도 없으면 public</small>
+      <span>스키마 <small style="display:inline">(선택)</small></span>
+      <input type="text" id="dbschema" name="dbschema" autocomplete="off" placeholder="public">
+      <small>테이블을 public 이 아닌 스키마에 만들었을 때만 입력. 대소문자까지 똑같이</small>
     </label>
   </div>
   <div class="actions">
