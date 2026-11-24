@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>DB 과제 채점기</title>
+<style>
+  body { font-family: system-ui, "Malgun Gothic", sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.4rem; }
+  label { display: block; margin-top: 1rem; font-weight: 600; }
+  small { display: block; color: #666; font-weight: 400; }
+  input[type=text], input[type=password] { width: 100%; padding: .5rem; box-sizing: border-box; font-size: 1rem; }
+  button { margin-top: 1.2rem; padding: .6rem 1.2rem; font-size: 1rem; cursor: pointer; }
+  button:disabled { cursor: wait; opacity: .6; }
+  #result { margin-top: 1.5rem; }
+  .row { padding: .35rem 0; border-bottom: 1px solid #eee; }
+  .ok { color: #1a7f37; font-weight: 600; }
+  .ng { color: #cf222e; font-weight: 600; }
+  .detail { color: #555; font-size: .9rem; margin-left: 1.6rem; word-break: break-all; }
+  .error { color: #cf222e; font-weight: 600; }
+  code { background: #f4f4f4; padding: 0 .3rem; word-break: break-all; }
+</style>
+</head>
+<body>
+<h1>DB 과제 채점기</h1>
+<p>스프링 서버를 먼저 실행한 뒤 아래 값을 입력하고 [검사 시작]을 누르세요. 입력한 값은 이 컴퓨터 안에서만 쓰이고, DB 비밀번호는 결과 파일과 로그에 남지 않습니다.</p>
+<form id="form">
+  <input type="hidden" name="token" value="__TOKEN__">
+  <label>학번 <small>영문과 숫자만</small>
+    <input type="text" name="id" autocomplete="off" required></label>
+  <label>Neon 주소 <small>application.properties 의 spring.datasource.url 값</small>
+    <input type="text" name="db" autocomplete="off" placeholder="jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require"></label>
+  <label>DB 사용자명
+    <input type="text" name="dbuser" autocomplete="off"></label>
+  <label>DB 비밀번호
+    <input type="password" name="dbpass" autocomplete="off"></label>
+  <label>로컬 포트 <small>스프링 서버가 떠 있는 포트 (기본 8080)</small>
+    <input type="number" name="port" value="8080" min="1" max="65535" required></label>
+  <button id="start" type="submit">검사 시작</button>
+  <button id="quit" type="button">종료</button>
+</form>
+<div id="result"></div>
+<script>
+const form = document.getElementById('form');
+const startBtn = document.getElementById('start');
+const result = document.getElementById('result');
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function render(data) {
+  result.replaceChildren();
+  if (data.error) {
+    result.appendChild(el('p', 'error', data.error));
+    return;
+  }
+  for (const o of data.outcomes) {
+    const row = el('div', 'row');
+    const mark = o.passed ? '✔' : '✘';
+    row.appendChild(el('span', o.passed ? 'ok' : 'ng', mark + ' ' + o.id + ' [' + o.group + '] ' + o.title));
+    row.appendChild(el('div', 'detail', o.detail));
+    result.appendChild(row);
+  }
+  result.appendChild(el('h2', '', '통과 ' + data.passed + ' / 전체 ' + data.total));
+  const enc = el('p', '', '제출 파일(.enc): ');
+  enc.appendChild(el('code', '', data.encPath));
+  const log = el('p', '', '로그 파일: ');
+  log.appendChild(el('code', '', data.logPath));
+  result.append(enc, log, el('p', '', '.enc 파일을 제출하세요. 확인이 끝났으면 [종료]를 누르세요.'));
+}
+
+form.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  startBtn.disabled = true;
+  startBtn.textContent = '검사 중…';
+  result.replaceChildren(el('p', '', '검사 중입니다. 잠시만 기다려 주세요…'));
+  try {
+    const body = new URLSearchParams(new FormData(form));
+    const resp = await fetch('/run', { method: 'POST', body });
+    render(await resp.json());
+  } catch (e) {
+    render({ error: '채점기와 통신할 수 없습니다. 프로그램이 종료되었을 수 있습니다: ' + e });
+  } finally {
+    startBtn.disabled = false;
+    startBtn.textContent = '검사 시작';
+  }
+});
+
+document.getElementById('quit').addEventListener('click', async () => {
+  try { await fetch('/quit', { method: 'POST', body: new URLSearchParams({ token: form.token.value }) }); } catch (e) {}
+  document.body.replaceChildren(el('p', '', '종료했습니다. 이 창을 닫아도 됩니다.'));
+});
+
+// 창을 닫으면 서버가 잠시 뒤 종료한다 (새로고침이면 곧바로 다시 요청이 와서 취소된다).
+window.addEventListener('pagehide', () => {
+  navigator.sendBeacon('/closing', new URLSearchParams({ token: form.token.value }));
+});
+</script>
+</body>
+</html>
