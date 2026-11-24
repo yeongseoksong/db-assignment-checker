@@ -31,9 +31,11 @@ dist:
 	lipo -create -output dist/checker-macos dist/checker-darwin-arm64 dist/checker-darwin-amd64
 	rm dist/checker-darwin-arm64 dist/checker-darwin-amd64
 	@# 모두 zip 으로 묶는다. macOS·Linux 는 실행 권한을 보존하려고, Windows 는 LMS·메일이 .exe 를 막는 경우가 있어서다.
+	@# 학생 안내(docs/guide.html)도 함께 넣는다. 한글 파일명은 Windows 에서 깨지므로 GUIDE.html 로 넣는다.
+	cp docs/guide.html dist/GUIDE.html
 	cd dist && for f in checker-macos checker-linux-amd64 checker-windows-amd64.exe; do \
-		rm -f "$${f%.exe}.zip" && zip -q "$${f%.exe}.zip" "$$f" && rm "$$f" || exit 1; \
-	done
+		rm -f "$${f%.exe}.zip" && zip -q "$${f%.exe}.zip" "$$f" GUIDE.html && rm "$$f" || exit 1; \
+	done && rm GUIDE.html
 
 clean:
 	rm -rf dist
