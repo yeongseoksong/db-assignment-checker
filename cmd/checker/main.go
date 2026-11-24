@@ -38,7 +38,39 @@ func main() {
 	os.Exit(code)
 }
 
+// runningFromTempDir 는 Windows 에서 zip 을 풀지 않고 안의 .exe 를 바로 실행했는지 본다.
+// 그러면 탐색기가 임시 폴더에 풀어 실행하므로 실행 파일 옆 results 폴더가 임시 폴더에 생겨 사라진다.
+func runningFromTempDir() bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	return insideDir(exe, os.TempDir())
+}
+
+// insideDir 는 path 가 dir 안에 있으면 true 다. Windows 경로는 대소문자를 구분하지 않으므로 소문자로 비교한다.
+func insideDir(path, dir string) bool {
+	if dir == "" {
+		return false
+	}
+	rel, err := filepath.Rel(strings.ToLower(dir), strings.ToLower(path))
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 func run() int {
+	if runningFromTempDir() {
+		fmt.Println("zip 파일 안에서 바로 실행했습니다. 이대로는 제출 파일이 임시 폴더에 생겨 사라집니다.")
+		fmt.Println("zip 파일을 오른쪽 클릭 → [압축 풀기] 한 뒤, 풀린 폴더의 checker-windows-amd64.exe 를 실행하세요.")
+		fmt.Print("엔터를 누르면 종료합니다...")
+		bufio.NewReader(os.Stdin).ReadString('\n')
+		return 1
+	}
 	var in app.Input
 	var outDir string
 	var noPause, noBrowser, cliMode bool

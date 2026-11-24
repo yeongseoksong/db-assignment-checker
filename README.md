@@ -30,10 +30,11 @@ make dist    # dist/ 에 배포 파일 생성
 | OS | 파일 |
 |---|---|
 | macOS | `checker-macos.zip` |
-| Windows | `checker-windows-amd64.exe` |
+| Windows | `checker-windows-amd64.zip` |
 | Linux | `checker-linux-amd64.zip` |
 
-macOS·Linux 용은 실행 권한이 유지되도록 zip 으로 묶습니다. 학생이 `chmod` 를 할 필요가 없습니다.
+모두 zip 으로 묶습니다. macOS·Linux 는 실행 권한이 유지되고, Windows 는 `.exe` 업로드를 막는 LMS 에도 올릴 수 있습니다.
+Windows 에서 zip 을 풀지 않고 안의 `.exe` 를 바로 실행하면 채점기가 압축을 먼저 풀라고 안내하고 멈춥니다.
 
 제출받은 zip 을 한 폴더에 모아 복호화합니다.
 
@@ -48,7 +49,7 @@ go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 ## 학생
 
 1. 스프링 서버를 먼저 실행합니다.
-2. 받은 zip 을 더블클릭해 풀고, 채점기를 더블클릭하면 브라우저에 입력 창이 열립니다.
+2. 받은 zip 을 풀고(Windows 는 오른쪽 클릭 → [압축 풀기]), 풀린 채점기를 더블클릭하면 브라우저에 입력 창이 열립니다.
 3. 학번, Neon 주소, DB 사용자명·비밀번호, 스키마(선택), 포트를 넣고 [검사 시작]을 누릅니다.
 4. `results/submit_<학번>_<시각>.zip` 을 제출합니다.
 
