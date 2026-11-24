@@ -2,44 +2,181 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
 <title>DB 과제 채점기</title>
 <style>
-  body { font-family: system-ui, "Malgun Gothic", sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; color: #222; }
-  h1 { font-size: 1.4rem; }
-  label { display: block; margin-top: 1rem; font-weight: 600; }
-  small { display: block; color: #666; font-weight: 400; }
-  input[type=text], input[type=password], input[type=number] { width: 100%; padding: .5rem; box-sizing: border-box; font-size: 1rem; }
-  button { margin-top: 1.2rem; padding: .6rem 1.2rem; font-size: 1rem; cursor: pointer; }
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1f2328;
+    --muted: #656d76;
+    --border: #d8dee4;
+    --accent: #2f6feb;
+    --accent-hover: #1f5bd1;
+    --ok: #1a7f37;
+    --ok-bg: #e6f4ea;
+    --ng: #cf222e;
+    --ng-bg: #fdecec;
+    --code-bg: #f0f2f5;
+    --shadow: 0 1px 3px rgba(31, 35, 40, .08), 0 8px 24px rgba(31, 35, 40, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --text: #e6edf3;
+      --muted: #8d96a0;
+      --border: #30363d;
+      --accent: #2f6feb;
+      --accent-hover: #4c8dff;
+      --ok: #3fb950;
+      --ok-bg: #12261a;
+      --ng: #f85149;
+      --ng-bg: #2d1416;
+      --code-bg: #21262d;
+      --shadow: none;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+
+  header h1 { margin: 0 0 6px; font-size: 1.6rem; letter-spacing: -.01em; }
+  header p { margin: 0 0 24px; color: var(--muted); font-size: .95rem; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .card + .card { margin-top: 20px; }
+
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field.wide { grid-column: 1 / -1; }
+  .field span { font-weight: 600; font-size: .9rem; }
+  .field small { color: var(--muted); font-size: .8rem; }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: .95rem;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input::placeholder { color: var(--muted); opacity: .7; }
+  input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+
+  .actions { display: flex; gap: 10px; margin-top: 24px; }
+  button {
+    font: inherit;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    transition: background .15s, border-color .15s;
+  }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; flex: 1; }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
   button:disabled { cursor: wait; opacity: .6; }
-  #result { margin-top: 1.5rem; }
-  .row { padding: .35rem 0; border-bottom: 1px solid #eee; }
-  .ok { color: #1a7f37; font-weight: 600; }
-  .ng { color: #cf222e; font-weight: 600; }
-  .detail { color: #555; font-size: .9rem; margin-left: 1.6rem; word-break: break-all; }
-  .error { color: #cf222e; font-weight: 600; }
-  code { background: #f4f4f4; padding: 0 .3rem; word-break: break-all; }
+
+  #result:empty { display: none; }
+  .summary { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .summary h2 { margin: 0; font-size: 1.15rem; }
+  .badge { padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: .9rem; }
+  .badge.ok { background: var(--ok-bg); color: var(--ok); }
+  .badge.ng { background: var(--ng-bg); color: var(--ng); }
+
+  .checks { list-style: none; margin: 0; padding: 0; }
+  .check { display: grid; grid-template-columns: 28px 1fr; gap: 2px 10px; padding: 12px 0; border-top: 1px solid var(--border); }
+  .icon {
+    grid-row: span 2;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: .8rem; font-weight: 700;
+  }
+  .icon.ok { background: var(--ok-bg); color: var(--ok); }
+  .icon.ng { background: var(--ng-bg); color: var(--ng); }
+  .title { font-weight: 600; }
+  .tag { color: var(--muted); font-weight: 500; font-size: .8rem; margin-right: 6px; }
+  .detail { color: var(--muted); font-size: .85rem; word-break: break-all; }
+
+  .files { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: .9rem; }
+  .files p { margin: 6px 0; }
+  .hint { color: var(--muted); }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: .85em; word-break: break-all; }
+
+  .notice { padding: 12px 14px; border-radius: 8px; margin: 0; }
+  .notice.error { background: var(--ng-bg); color: var(--ng); font-weight: 600; }
+  .notice.wait { color: var(--muted); }
+
+  @media (max-width: 560px) {
+    .fields { grid-template-columns: 1fr; }
+    .card { padding: 18px; }
+  }
 </style>
 </head>
 <body>
-<h1>DB 과제 채점기</h1>
-<p>스프링 서버를 먼저 실행한 뒤 아래 값을 입력하고 [검사 시작]을 누르세요. 입력한 값은 이 컴퓨터 안에서만 쓰이고, DB 비밀번호는 결과 파일과 로그에 남지 않습니다.</p>
-<form id="form">
+<main>
+<header>
+  <h1>DB 과제 채점기</h1>
+  <p>스프링 서버를 먼저 실행한 뒤 아래 값을 입력하고 [검사 시작]을 누르세요. 입력한 값은 이 컴퓨터 안에서만 쓰이고, DB 비밀번호는 결과 파일과 로그에 남지 않습니다.</p>
+</header>
+
+<form id="form" class="card">
   <input type="hidden" name="token" value="__TOKEN__">
-  <label>학번 <small>영문과 숫자만</small>
-    <input type="text" name="id" autocomplete="off" required></label>
-  <label>Neon 주소 <small>application.properties 의 spring.datasource.url 값</small>
-    <input type="text" name="db" autocomplete="off" placeholder="jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require"></label>
-  <label>DB 사용자명
-    <input type="text" name="dbuser" autocomplete="off"></label>
-  <label>DB 비밀번호
-    <input type="password" name="dbpass" autocomplete="off"></label>
-  <label>로컬 포트 <small>스프링 서버가 떠 있는 포트 (기본 8080)</small>
-    <input type="number" name="port" value="8080" min="1" max="65535" required></label>
-  <button id="start" type="submit">검사 시작</button>
-  <button id="quit" type="button">종료</button>
+  <div class="fields">
+    <label class="field">
+      <span>학번</span>
+      <input type="text" name="id" autocomplete="off" required>
+      <small>영문과 숫자만</small>
+    </label>
+    <label class="field">
+      <span>로컬 포트</span>
+      <input type="number" name="port" value="8080" min="1" max="65535" required>
+      <small>스프링 서버가 떠 있는 포트 (기본 8080)</small>
+    </label>
+    <label class="field wide">
+      <span>Neon 주소</span>
+      <input type="text" name="db" autocomplete="off" placeholder="jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require">
+      <small>application.properties 의 spring.datasource.url 값</small>
+    </label>
+    <label class="field">
+      <span>DB 사용자명</span>
+      <input type="text" name="dbuser" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>DB 비밀번호</span>
+      <input type="password" name="dbpass" autocomplete="off">
+    </label>
+  </div>
+  <div class="actions">
+    <button id="start" class="primary" type="submit">검사 시작</button>
+    <button id="quit" type="button">종료</button>
+  </div>
 </form>
-<div id="result"></div>
+
+<section id="result" class="card"></section>
+</main>
 <script>
 const form = document.getElementById('form');
 const startBtn = document.getElementById('start');
@@ -55,29 +192,42 @@ function el(tag, cls, text) {
 function render(data) {
   result.replaceChildren();
   if (data.error) {
-    result.appendChild(el('p', 'error', data.error));
+    result.appendChild(el('p', 'notice error', data.error));
     return;
   }
+
+  const allPassed = data.passed === data.total;
+  const summary = el('div', 'summary');
+  summary.append(el('h2', '', '검사 결과'), el('span', 'badge ' + (allPassed ? 'ok' : 'ng'), '통과 ' + data.passed + ' / 전체 ' + data.total));
+  result.appendChild(summary);
+
+  const list = el('ul', 'checks');
   for (const o of data.outcomes) {
-    const row = el('div', 'row');
-    const mark = o.passed ? '✔' : '✘';
-    row.appendChild(el('span', o.passed ? 'ok' : 'ng', mark + ' ' + o.id + ' [' + o.group + '] ' + o.title));
-    row.appendChild(el('div', 'detail', o.detail));
-    result.appendChild(row);
+    const state = o.passed ? 'ok' : 'ng';
+    const item = el('li', 'check');
+    item.appendChild(el('span', 'icon ' + state, o.passed ? '✔' : '✘'));
+    const title = el('div', 'title');
+    title.append(el('span', 'tag', o.id + ' · ' + o.group), o.title);
+    item.appendChild(title);
+    item.appendChild(el('div', 'detail', o.detail));
+    list.appendChild(item);
   }
-  result.appendChild(el('h2', '', '통과 ' + data.passed + ' / 전체 ' + data.total));
-  const enc = el('p', '', '제출 파일(.enc): ');
+  result.appendChild(list);
+
+  const files = el('div', 'files');
+  const enc = el('p', '', '제출 파일 ');
   enc.appendChild(el('code', '', data.encPath));
-  const log = el('p', '', '로그 파일: ');
+  const log = el('p', '', '로그 파일 ');
   log.appendChild(el('code', '', data.logPath));
-  result.append(enc, log, el('p', '', '.enc 파일을 제출하세요. 확인이 끝났으면 [종료]를 누르세요.'));
+  files.append(enc, log, el('p', 'hint', '.enc 파일을 제출하세요. 확인이 끝났으면 [종료]를 누르세요.'));
+  result.appendChild(files);
 }
 
 form.addEventListener('submit', async (ev) => {
   ev.preventDefault();
   startBtn.disabled = true;
   startBtn.textContent = '검사 중…';
-  result.replaceChildren(el('p', '', '검사 중입니다. 잠시만 기다려 주세요…'));
+  result.replaceChildren(el('p', 'notice wait', '검사 중입니다. 잠시만 기다려 주세요…'));
   try {
     const body = new URLSearchParams(new FormData(form));
     const resp = await fetch('/run', { method: 'POST', body });
@@ -92,7 +242,7 @@ form.addEventListener('submit', async (ev) => {
 
 document.getElementById('quit').addEventListener('click', async () => {
   try { await fetch('/quit', { method: 'POST', body: new URLSearchParams({ token: form.token.value }) }); } catch (e) {}
-  document.body.replaceChildren(el('p', '', '종료했습니다. 이 창을 닫아도 됩니다.'));
+  document.querySelector('main').replaceChildren(el('p', 'notice wait', '종료했습니다. 이 창을 닫아도 됩니다.'));
 });
 
 // 창을 닫으면 서버가 잠시 뒤 종료한다 (새로고침이면 곧바로 다시 요청이 와서 취소된다).

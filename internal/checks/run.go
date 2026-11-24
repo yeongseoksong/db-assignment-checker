@@ -31,7 +31,7 @@ func RunAll(ctx context.Context, env *Env, onDone func(Outcome)) []Outcome {
 		var res Result
 		switch {
 		case c.Group == GroupDB && env.DBURL == "":
-			res = Result{Detail: "Neon 연결 문자열을 지정하세요 (-db 또는 입력 창의 연결 문자열 칸)"}
+			res = Result{Detail: "Neon 주소를 입력하세요 (입력 창의 Neon 주소 칸 또는 -db)"}
 		case (c.Group == GroupAPI || c.Group == GroupErrors) && serverErr != nil:
 			res = Result{Detail: fmt.Sprintf("서버(%s)에 연결할 수 없습니다. Spring Boot 앱을 먼저 실행하세요", env.BaseURL)}
 		default:
