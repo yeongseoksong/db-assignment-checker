@@ -79,7 +79,7 @@ go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -ou
 
 ### 명령줄 모드
 
-`-id`, `-db`, `-db-user`, `-port` 를 모두 주거나 `-cli` 를 주면 브라우저 없이 콘솔에서 실행합니다. 빠진 값은 물어봅니다.
+입력 플래그(`-id`, `-db`, `-db-user`, `-db-password`, `-db-schema`, `-port`)를 하나라도 주거나 `-cli` 를 주면 브라우저 없이 콘솔에서 실행합니다. 빠진 값은 물어봅니다.
 
 ```sh
 ./checker-macos -id 20231234 -db "jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require" -db-user neondb_owner -port 8080

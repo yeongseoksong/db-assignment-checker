@@ -61,9 +61,8 @@ func run() int {
 	}
 	given := map[string]bool{}
 	flag.Visit(func(f *flag.Flag) { given[f.Name] = true })
-	allGiven := given["id"] && given["db"] && given["db-user"] && given["port"]
 
-	if cliMode || allGiven {
+	if useCLI(cliMode, given) {
 		code := runCLI(cfg, in)
 		if !noPause && isTerminal(os.Stdin) {
 			fmt.Print("엔터를 누르면 종료합니다...")
@@ -119,6 +118,24 @@ func resolveOutDir(outDir string) (string, error) {
 		return "", fmt.Errorf("결과 폴더 경로 %q 가 올바르지 않습니다: %w", outDir, err)
 	}
 	return abs, nil
+}
+
+// inputFlags 는 채점 입력값을 주는 플래그 이름이다.
+var inputFlags = []string{"id", "db", "db-user", "db-password", "db-schema", "port"}
+
+// useCLI 는 명령줄 모드로 실행할지 정한다.
+// 입력 플래그를 하나라도 주면 명령줄 모드다. 창 모드로 가면 준 값이 버려지기 때문이다.
+// 빠진 값은 runCLI 가 물어본다.
+func useCLI(cliFlag bool, given map[string]bool) bool {
+	if cliFlag {
+		return true
+	}
+	for _, name := range inputFlags {
+		if given[name] {
+			return true
+		}
+	}
+	return false
 }
 
 // ---- 명령줄 모드 ----
