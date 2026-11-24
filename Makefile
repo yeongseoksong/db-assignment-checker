@@ -10,7 +10,8 @@ snapshot:
 	go run ./tools/snapshot
 
 test:
-	go vet ./...
+	@# ./... 는 testdata/ 폴더를 건너뛰므로 가짜 서버는 따로 지정한다
+	go vet ./... ./testdata/fakeserver
 	go test ./...
 
 # keys/ 의 공개키와 HMAC 비밀키를 바이너리에 주입해 플랫폼별로 크로스컴파일한다.

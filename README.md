@@ -70,11 +70,13 @@ go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 학생 서버 대신 가짜 서버를 띄워 채점기가 제대로 잡아내는지 볼 수 있습니다. `-bug` 로 일부러 틀린 버전을 고릅니다.
 
 ```sh
-go run ./testdata/fakeserver -list            # 버전 목록과 실패해야 하는 검사
-go run ./testdata/fakeserver -bug boundary    # :8080 에 경계값을 빠뜨리는 서버
+go run ./testdata/fakeserver -list                       # 버전 목록과 실패해야 하는 검사
+go run ./testdata/fakeserver -bug boundary               # :8080 에 경계값을 빠뜨리는 서버
+go run ./testdata/fakeserver -bug correct,boundary       # :8080 정답, :8081 경계값 누락 (한 번에 여러 개)
+go run ./testdata/fakeserver -bug all -port 9000         # 모든 버전을 :9000 부터 하나씩
 ```
 
-다른 터미널에서 채점기를 포트 8080 으로 실행합니다. 가짜 서버는 DB 를 쓰지 않으므로 D1~D3 는 실패로 나옵니다.
+다른 터미널에서 채점기를 해당 포트로 실행합니다. 가짜 서버는 DB 를 쓰지 않으므로 D1~D3 는 실패로 나옵니다.
 
 ## 참고
 
