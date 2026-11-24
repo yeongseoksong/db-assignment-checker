@@ -23,11 +23,17 @@ const (
 
 // dbColumn 은 public 스키마 텍스트 컬럼 하나와 읽어 온 값(중복 제거, 최대 5000개)이다.
 type dbColumn struct {
-	Table, Column string
-	Values        []string
+	Schema, Table, Column string
+	Values                []string
 }
 
-func (c dbColumn) name() string { return c.Table + "." + c.Column }
+// name 은 결과에 보여 줄 컬럼 이름이다. public 스키마면 스키마를 생략한다.
+func (c dbColumn) name() string {
+	if c.Schema == "public" {
+		return c.Table + "." + c.Column
+	}
+	return c.Schema + "." + c.Table + "." + c.Column
+}
 
 // dbSnapshot 은 D1 이 읽어 온 DB 내용이다. D2/D3 의 판정은 이것만 본다.
 type dbSnapshot struct {
@@ -94,13 +100,16 @@ func loadSnapshot(ctx context.Context, connString string) (*dbSnapshot, error) {
 	}
 	defer tx.Rollback(context.Background())
 
+	// 학생이 currentSchema 로 public 이 아닌 스키마를 썼을 수 있으므로 시스템 스키마를 뺀 모든 스키마를 본다.
 	const listColumns = `
-		SELECT c.table_name, c.column_name
+		SELECT c.table_schema, c.table_name, c.column_name
 		FROM information_schema.columns c
 		JOIN information_schema.tables t ON t.table_schema = c.table_schema AND t.table_name = c.table_name
-		WHERE c.table_schema = 'public' AND t.table_type = 'BASE TABLE'
+		WHERE c.table_schema NOT IN ('information_schema', 'pg_catalog')
+		  AND c.table_schema NOT LIKE 'pg\_%'
+		  AND t.table_type = 'BASE TABLE'
 		  AND c.data_type IN ('text', 'character varying', 'character')
-		ORDER BY c.table_name, c.ordinal_position`
+		ORDER BY c.table_schema, c.table_name, c.ordinal_position`
 	rows, err := tx.Query(ctx, listColumns)
 	if err != nil {
 		return nil, err
@@ -108,7 +117,7 @@ func loadSnapshot(ctx context.Context, connString string) (*dbSnapshot, error) {
 	var snap dbSnapshot
 	for rows.Next() {
 		var col dbColumn
-		if err := rows.Scan(&col.Table, &col.Column); err != nil {
+		if err := rows.Scan(&col.Schema, &col.Table, &col.Column); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -121,7 +130,7 @@ func loadSnapshot(ctx context.Context, connString string) (*dbSnapshot, error) {
 	for i := range snap.Columns {
 		col := &snap.Columns[i]
 		// 식별자는 파라미터로 넘길 수 없으므로 Sanitize 로 인용한다.
-		table := pgx.Identifier{"public", col.Table}.Sanitize()
+		table := pgx.Identifier{col.Schema, col.Table}.Sanitize()
 		column := pgx.Identifier{col.Column}.Sanitize()
 		query := fmt.Sprintf("SELECT DISTINCT %s FROM %s LIMIT %d", column, table, dbMaxRows)
 		values, err := readStrings(ctx, tx, query)

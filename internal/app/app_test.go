@@ -142,6 +142,8 @@ func TestNormalizeDBAddress(t *testing.T) {
 		{"일부만 입력칸 우선", "postgresql://old:oldpw@h/db?sslmode=require", "new", "", "postgresql://new:oldpw@h/db?sslmode=require"},
 		{"쿼리의 user/password 사용", "jdbc:postgresql://h/db?user=qu&password=qp&sslmode=require", "", "", "postgresql://qu:qp@h/db?sslmode=require"},
 		{"비밀번호 특수문자 인코딩", "h/db", "u", "p@ss:w/rd#1", "postgresql://u:p%40ss%3Aw%2Frd%231@h/db?sslmode=require"},
+		{"Neon JDBC channelBinding 변환", "jdbc:postgresql://ep-x.neon.tech/neondb?sslmode=require&channelBinding=require", "u", "p", "postgresql://u:p@ep-x.neon.tech/neondb?channel_binding=require&sslmode=require"},
+		{"currentSchema 등 JDBC 전용 파라미터 제거", "jdbc:postgresql://h/db?currentSchema=bookstore&loggerLevel=OFF&sslmode=require", "u", "p", "postgresql://u:p@h/db?sslmode=require"},
 		{"자격증명 없음", "h/db", "", "", ""},
 		{"다른 스킴", "jdbc:mysql://h/db", "u", "p", ""},
 		{"호스트 없음", "postgresql:///db", "u", "p", ""},

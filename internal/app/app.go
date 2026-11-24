@@ -75,6 +75,13 @@ func Validate(in Input) (Input, error) {
 	return in, nil
 }
 
+// keptDBParams 는 pgx 가 이해하는 접속 파라미터 중 학생 주소에 들어 있을 만한 것들이다.
+var keptDBParams = map[string]bool{
+	"sslmode": true, "sslrootcert": true, "sslcert": true, "sslkey": true,
+	"channel_binding": true, "connect_timeout": true, "application_name": true,
+	"options": true, "target_session_attrs": true,
+}
+
 // NormalizeDBAddress 는 Neon 주소를 pgx 가 읽는 postgresql:// 연결 문자열로 바꾼다 (순수 함수).
 // 받는 형태는 jdbc:postgresql://..., postgres(ql)://..., 그리고 스킴 없는 호스트/DB 이름이다.
 // 자격증명은 입력칸 값이 우선이고, 비어 있을 때만 주소 안의 값(userinfo, 쿼리의 user/password)을 쓴다.
@@ -112,6 +119,18 @@ func NormalizeDBAddress(address, user, password string) (string, error) {
 		return "", errors.New("DB 사용자명/비밀번호를 입력하세요 (application.properties 의 spring.datasource.username / password 값)")
 	}
 	u.User = url.UserPassword(user, password)
+	// JDBC 드라이버 전용 파라미터를 정리한다. pgx 는 모르는 파라미터를 서버 설정으로 보내
+	// "unrecognized configuration parameter" 로 접속이 실패한다.
+	// Neon 대시보드의 JDBC 주소에는 channelBinding=require 가 기본으로 붙어 있다.
+	channelBinding := query.Get("channelBinding")
+	if channelBinding != "" && !query.Has("channel_binding") {
+		query.Set("channel_binding", channelBinding)
+	}
+	for key := range query {
+		if !keptDBParams[key] {
+			query.Del(key) // currentSchema 등. 스키마는 D 검사가 모든 스키마를 훑으므로 필요 없다.
+		}
+	}
 	if !query.Has("sslmode") {
 		query.Set("sslmode", "require")
 	}
