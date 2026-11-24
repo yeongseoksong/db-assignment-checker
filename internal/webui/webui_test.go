@@ -15,7 +15,7 @@ import (
 
 func fakeRun(in app.Input) (*app.Result, error) {
 	o := checks.Outcome{Check: checks.Check{ID: "S1", Group: "구조", Title: "t"}, Result: checks.Result{Passed: true, Detail: "ok " + in.StudentID}}
-	return &app.Result{Outcomes: []checks.Outcome{o}, Passed: 1, Total: 1, EncPath: "a.enc", LogPath: "a.log"}, nil
+	return &app.Result{Outcomes: []checks.Outcome{o}, Passed: 1, Total: 1, SubmitPath: "a.zip"}, nil
 }
 
 func post(t *testing.T, ts *httptest.Server, path string, form url.Values) *http.Response {

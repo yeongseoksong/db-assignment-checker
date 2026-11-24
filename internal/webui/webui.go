@@ -110,12 +110,11 @@ type outcomeJSON struct {
 }
 
 type runResponse struct {
-	Error    string        `json:"error,omitempty"`
-	Outcomes []outcomeJSON `json:"outcomes,omitempty"`
-	Passed   int           `json:"passed"`
-	Total    int           `json:"total"`
-	EncPath  string        `json:"encPath,omitempty"`
-	LogPath  string        `json:"logPath,omitempty"`
+	Error      string        `json:"error,omitempty"`
+	Outcomes   []outcomeJSON `json:"outcomes,omitempty"`
+	Passed     int           `json:"passed"`
+	Total      int           `json:"total"`
+	SubmitPath string        `json:"submitPath,omitempty"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -158,7 +157,7 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func toResponse(res *app.Result) runResponse {
-	resp := runResponse{Passed: res.Passed, Total: res.Total, EncPath: res.EncPath, LogPath: res.LogPath}
+	resp := runResponse{Passed: res.Passed, Total: res.Total, SubmitPath: res.SubmitPath}
 	for _, o := range res.Outcomes {
 		resp.Outcomes = append(resp.Outcomes, toOutcome(o))
 	}

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"archive/zip"
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
@@ -12,6 +13,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -44,8 +46,8 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `사용법:
   instructor keygen  -dir keys
-  instructor decrypt -key keys/private.key -hmac keys/hmac.secret -out merged.csv results/*.enc
-    (*.log.enc 는 merged.csv 옆 logs/ 폴더에 평문 .log 로 풀립니다)`)
+  instructor decrypt -key keys/private.key -hmac keys/hmac.secret -out merged.csv submissions/*.zip
+    (로그는 merged.csv 옆 logs/ 폴더에 평문 .log 로 풀립니다)`)
 }
 
 func keygen(args []string) error {
@@ -102,7 +104,7 @@ func readKeyFile(path string) ([]byte, error) {
 	return raw, nil
 }
 
-var reFileID = regexp.MustCompile(`^result_([A-Za-z0-9]+)_`)
+var reFileID = regexp.MustCompile(`^submit_([A-Za-z0-9]+)_`)
 
 func decrypt(args []string) error {
 	fs := flag.NewFlagSet("decrypt", flag.ExitOnError)
@@ -112,7 +114,7 @@ func decrypt(args []string) error {
 	fs.Parse(args)
 	inputs := fs.Args()
 	if len(inputs) == 0 {
-		return errors.New(".enc 파일을 하나 이상 지정하세요 (예: results/*.enc)")
+		return errors.New("제출 zip 파일을 하나 이상 지정하세요 (예: submissions/*.zip)")
 	}
 	privBytes, err := readKeyFile(*keyPath)
 	if err != nil {
@@ -137,80 +139,125 @@ func decrypt(args []string) error {
 	w.Write(append(append([]string{}, report.Header...), "integrity", "source_file"))
 
 	logDir := filepath.Join(filepath.Dir(*outPath), "logs")
-	invalid, results, logs := 0, 0, 0
+	invalid, logs := 0, 0
 	for _, path := range inputs {
 		base := filepath.Base(path)
-		if strings.HasSuffix(base, ".log.enc") {
-			if err := decryptLog(path, priv, logDir); err != nil {
-				fmt.Fprintf(os.Stderr, "경고: %s: %v\n", base, err)
-			} else {
-				logs++
-			}
-			continue
-		}
-		results++
-		integrity, records := readOne(path, priv, secret)
-		if integrity != "OK" {
+		sub := readSubmission(path, priv, secret)
+		if sub.Integrity != "OK" {
 			invalid++
-			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, integrity)
+			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, sub.Integrity)
 		}
+		records := sub.Records
 		if records == nil {
 			// 읽을 수 없는 파일도 흔적을 남긴다. 학번은 파일 이름에서 추정한다.
 			row := make([]string, len(report.Header))
-			if m := reFileID.FindStringSubmatch(base); m != nil {
+			m := reFileID.FindStringSubmatch(base)
+			if m != nil {
 				row[0] = m[1]
 			}
 			records = [][]string{row}
 		}
 		for _, rec := range records {
-			w.Write(append(append([]string{}, rec...), integrity, base))
+			w.Write(append(append([]string{}, rec...), sub.Integrity, base))
+		}
+		if sub.Log != nil {
+			if err := writeLog(logDir, sub.LogName, sub.Log); err != nil {
+				fmt.Fprintf(os.Stderr, "경고: %s: 로그를 쓸 수 없음: %v\n", base, err)
+			} else {
+				logs++
+			}
 		}
 	}
 	w.Flush()
 	if err := w.Error(); err != nil {
 		return err
 	}
-	fmt.Printf("결과 %d개 병합 (정상 %d, 의심 %d) -> %s\n", results, results-invalid, invalid, *outPath)
-	if logs > 0 {
-		fmt.Printf("로그 %d개 복호화 -> %s\n", logs, logDir)
-	}
+	fmt.Printf("제출 %d개 병합 (정상 %d, 의심 %d) -> %s\n", len(inputs), len(inputs)-invalid, invalid, *outPath)
+	fmt.Printf("로그 %d개 복호화 -> %s\n", logs, logDir)
 	return nil
 }
 
-// decryptLog 는 암호화된 로그 하나를 logDir 에 평문 .log 로 풀어 쓴다.
-func decryptLog(path string, priv *ecdh.PrivateKey, logDir string) error {
-	sealed, err := os.ReadFile(path)
+// submission 은 제출 zip 하나를 풀어 읽은 결과다.
+type submission struct {
+	Integrity string     // "OK" 또는 "INVALID: 사유"
+	Records   [][]string // 헤더를 뺀 CSV 레코드 (읽지 못했으면 nil)
+	LogName   string     // 평문 로그 파일 이름 (checker_<학번>_<시각>.log)
+	Log       []byte     // 평문 로그 (없거나 못 풀었으면 nil)
+}
+
+// readSubmission 은 제출 zip 에서 결과(.enc)와 로그(.log.enc)를 꺼내 복호화하고 결과의 HMAC 을 검증한다.
+func readSubmission(path string, priv *ecdh.PrivateKey, secret []byte) submission {
+	zr, err := zip.OpenReader(path)
 	if err != nil {
-		return err
+		return submission{Integrity: "INVALID: zip 을 열 수 없음 (" + err.Error() + ")"}
 	}
-	plain, err := report.Open(priv, sealed)
+	defer zr.Close()
+
+	var sealedResult, sealedLog []byte
+	var logName string
+	for _, f := range zr.File {
+		data, err := readZipEntry(f)
+		if err != nil {
+			return submission{Integrity: "INVALID: zip 항목 " + f.Name + " 을 읽을 수 없음 (" + err.Error() + ")"}
+		}
+		if strings.HasSuffix(f.Name, ".log.enc") {
+			sealedLog = data
+			logName = strings.TrimSuffix(filepath.Base(f.Name), ".enc")
+		} else if strings.HasSuffix(f.Name, ".enc") {
+			sealedResult = data
+		}
+	}
+
+	var sub submission
+	if sealedLog != nil {
+		plainLog, err := report.Open(priv, sealedLog)
+		if err == nil {
+			sub.Log = plainLog
+			sub.LogName = logName
+		}
+	}
+	if sealedResult == nil {
+		sub.Integrity = "INVALID: zip 에 결과 파일(.enc)이 없음"
+		return sub
+	}
+	plain, err := report.Open(priv, sealedResult)
 	if err != nil {
-		return err
+		sub.Integrity = "INVALID: " + err.Error()
+		return sub
 	}
+	records, integrityErr := report.ParseCSV(plain, secret)
+	if len(records) > 1 {
+		sub.Records = records[1:]
+	}
+	if integrityErr != nil {
+		sub.Integrity = "INVALID: " + integrityErr.Error()
+		return sub
+	}
+	if sealedLog == nil {
+		sub.Integrity = "INVALID: zip 에 로그 파일(.log.enc)이 없음"
+		return sub
+	}
+	if sub.Log == nil {
+		sub.Integrity = "INVALID: 로그 복호화 실패"
+		return sub
+	}
+	sub.Integrity = "OK"
+	return sub
+}
+
+func readZipEntry(f *zip.File) ([]byte, error) {
+	rc, err := f.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	return io.ReadAll(rc)
+}
+
+// writeLog 는 복호화한 로그를 logDir 에 쓴다.
+func writeLog(logDir, name string, data []byte) error {
 	if err := os.MkdirAll(logDir, 0o755); err != nil {
 		return err
 	}
-	name := strings.TrimSuffix(filepath.Base(path), ".enc") // checker_<학번>_<시각>.log
-	return os.WriteFile(filepath.Join(logDir, name), plain, 0o644)
-}
-
-// readOne 은 파일 하나를 복호화하고 HMAC 을 검증한다. 헤더를 뺀 레코드와 integrity 문자열을 돌려준다.
-func readOne(path string, priv *ecdh.PrivateKey, secret []byte) (string, [][]string) {
-	sealed, err := os.ReadFile(path)
-	if err != nil {
-		return "INVALID: 파일을 읽을 수 없음 (" + err.Error() + ")", nil
-	}
-	plain, err := report.Open(priv, sealed)
-	if err != nil {
-		return "INVALID: " + err.Error(), nil
-	}
-	records, integrityErr := report.ParseCSV(plain, secret)
-	var body [][]string
-	if len(records) > 1 {
-		body = records[1:]
-	}
-	if integrityErr != nil {
-		return "INVALID: " + integrityErr.Error(), body
-	}
-	return "OK", body
+	return os.WriteFile(filepath.Join(logDir, name), data, 0o644)
 }

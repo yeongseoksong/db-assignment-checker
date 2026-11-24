@@ -1,12 +1,13 @@
 package app
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/ecdh"
 	"crypto/rand"
+	"io"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -72,7 +73,26 @@ func TestRunWritesEncryptedResultWithoutLeakingPassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sealedLog, _ := os.ReadFile(res.LogPath)
+	zr, err := zip.OpenReader(res.SubmitPath)
+	if err != nil {
+		t.Fatalf("제출 zip 을 열 수 없습니다: %v", err)
+	}
+	defer zr.Close()
+	entries := map[string][]byte{} // 확장자 -> 내용
+	for _, f := range zr.File {
+		rc, _ := f.Open()
+		data, _ := io.ReadAll(rc)
+		rc.Close()
+		if strings.HasSuffix(f.Name, ".log.enc") {
+			entries[".log.enc"] = data
+		} else if strings.HasSuffix(f.Name, ".enc") {
+			entries[".enc"] = data
+		}
+	}
+	if len(zr.File) != 2 || entries[".enc"] == nil || entries[".log.enc"] == nil {
+		t.Fatalf("zip 에는 결과(.enc)와 로그(.log.enc) 두 파일이 있어야 합니다: %d개", len(zr.File))
+	}
+	sealedLog := entries[".log.enc"]
 	if bytes.Contains(sealedLog, []byte("채점 시작")) {
 		t.Fatal("로그 파일이 평문으로 저장되었습니다")
 	}
@@ -80,7 +100,7 @@ func TestRunWritesEncryptedResultWithoutLeakingPassword(t *testing.T) {
 	if err != nil {
 		t.Fatalf("로그를 개인키로 복호화할 수 없습니다: %v", err)
 	}
-	sealed, _ := os.ReadFile(res.EncPath)
+	sealed := entries[".enc"]
 	plain, err := report.Open(priv, sealed)
 	if err != nil {
 		t.Fatal(err)

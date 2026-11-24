@@ -3,6 +3,7 @@
 package app
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"crypto/ecdh"
@@ -129,13 +130,13 @@ type Config struct {
 // Result 는 채점 결과와 만든 파일 경로다.
 type Result struct {
 	Outcomes []checks.Outcome
-	EncPath  string
-	LogPath  string
-	Passed   int
-	Total    int
+	// SubmitPath 는 학생이 제출할 zip 경로다 (암호화된 결과 CSV 와 로그가 들어 있다).
+	SubmitPath string
+	Passed     int
+	Total      int
 }
 
-// Run 은 검사를 실행하고 결과(.enc)와 암호화한 로그(.log.enc)를 쓴다. onDone 은 검사 하나가 끝날 때마다 불린다(nil 가능).
+// Run 은 검사를 실행하고 암호화한 결과(.enc)와 로그(.log.enc)를 제출용 zip 하나로 쓴다. onDone 은 검사 하나가 끝날 때마다 불린다(nil 가능).
 // in 은 Validate 를 거친 값이어야 한다.
 func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome)) (*Result, error) {
 	if err := os.MkdirAll(cfg.OutDir, 0o755); err != nil {
@@ -143,8 +144,9 @@ func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome))
 	}
 	now := time.Now()
 	stamp := now.Format("20060102-150405")
-	logPath := filepath.Join(cfg.OutDir, fmt.Sprintf("checker_%s_%s.log.enc", in.StudentID, stamp))
-	encPath := filepath.Join(cfg.OutDir, fmt.Sprintf("result_%s_%s.enc", in.StudentID, stamp))
+	submitPath := filepath.Join(cfg.OutDir, fmt.Sprintf("submit_%s_%s.zip", in.StudentID, stamp))
+	encName := fmt.Sprintf("result_%s_%s.enc", in.StudentID, stamp)
+	logName := fmt.Sprintf("checker_%s_%s.log.enc", in.StudentID, stamp)
 	// 로그는 메모리에 모았다가 마지막에 교수자 공개키로 암호화해 쓴다 (학생은 읽을 수 없음).
 	var logBuf bytes.Buffer
 	log := newLogger(&logBuf)
@@ -171,7 +173,7 @@ func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome))
 			passed++
 		}
 	}
-	res := &Result{Outcomes: outcomes, EncPath: encPath, LogPath: logPath, Passed: passed, Total: len(outcomes)}
+	res := &Result{Outcomes: outcomes, SubmitPath: submitPath, Passed: passed, Total: len(outcomes)}
 	log.Info("채점 종료", "passed", passed, "total", len(outcomes))
 
 	csvBytes, err := report.BuildCSV(buildRows(cfg, in, now, res), cfg.HMACSecret)
@@ -182,17 +184,39 @@ func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome))
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(encPath, sealed, 0o644); err != nil {
-		return nil, fmt.Errorf("결과 파일을 쓸 수 없습니다: %w", err)
-	}
 	sealedLog, err := report.Seal(cfg.PublicKey, logBuf.Bytes())
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(logPath, sealedLog, 0o644); err != nil {
-		return nil, fmt.Errorf("로그 파일을 쓸 수 없습니다: %w", err)
+	if err := writeSubmission(submitPath, []zipEntry{{encName, sealed}, {logName, sealedLog}}); err != nil {
+		return nil, fmt.Errorf("제출 파일을 쓸 수 없습니다: %w", err)
 	}
 	return res, nil
+}
+
+type zipEntry struct {
+	Name string
+	Data []byte
+}
+
+// writeSubmission 은 암호화된 파일들을 zip 하나로 묶어 쓴다.
+// 이미 암호문이라 압축이 안 되므로 Store(무압축)로 넣는다.
+func writeSubmission(path string, entries []zipEntry) error {
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, e := range entries {
+		w, err := zw.CreateHeader(&zip.FileHeader{Name: e.Name, Method: zip.Store})
+		if err != nil {
+			return err
+		}
+		if _, err := w.Write(e.Data); err != nil {
+			return err
+		}
+	}
+	if err := zw.Close(); err != nil {
+		return err
+	}
+	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
 func buildRows(cfg Config, in Input, now time.Time, res *Result) []report.Row {
