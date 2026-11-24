@@ -204,6 +204,21 @@ func TestJudgeListPassesCorrectServerInAnyOrder(t *testing.T) {
 	}
 }
 
+// A2 의 범위는 항상 minPrice < maxPrice 이고, 정답이 2권 이상이어야 한다 (경계값 검사 A3 와 겹치지 않게).
+func TestRandomRangeIsAlwaysARealRange(t *testing.T) {
+	ds := loadData(t)
+	for seed := int64(0); seed < 2000; seed++ {
+		env := &Env{Data: ds, Rand: rand.New(rand.NewSource(seed))}
+		category, lo, hi := randomRange(env)
+		if !(lo < hi) {
+			t.Fatalf("시드 %d: %s minPrice=%.2f maxPrice=%.2f, minPrice < maxPrice 여야 합니다", seed, category, lo, hi)
+		}
+		if n := len(ds.Query(category, lo, hi)); n < 2 {
+			t.Fatalf("시드 %d: %s %.2f~%.2f 의 정답이 %d권입니다. 2권 이상이어야 합니다", seed, category, lo, hi, n)
+		}
+	}
+}
+
 func TestExtractItems(t *testing.T) {
 	if _, err := extractItems([]byte(`{"books":[{"a":"b"}]}`)); err != nil {
 		t.Errorf("객체로 감싼 배열은 허용해야 합니다: %v", err)

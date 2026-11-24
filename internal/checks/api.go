@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -357,22 +358,35 @@ func checkA1(ctx context.Context, env *Env) Result {
 	return runListCase(ctx, env, "Travel", 10, 30, "category=Travel minPrice=10 maxPrice=30: ")
 }
 
-// randomRange 는 임의 카테고리에서 책 두 권의 가격을 골라 결과가 비어 있지 않은 범위를 만든다.
+// randomRange 는 임의 카테고리에서 서로 다른 가격 두 개를 골라 lo < hi 인 범위를 만든다.
+// 같은 가격을 두 번 고르면 minPrice=maxPrice 가 되어 A3(경계값)와 같은 검사가 되므로,
+// 가격이 두 종류 이상인 카테고리에서만 고른다.
 func randomRange(env *Env) (category string, lo, hi float64) {
-	cats := env.Data.Categories()
-	category = cats[env.Rand.Intn(len(cats))]
-	var inCat []dataset.Book
+	pricesByCategory := map[string][]float64{}
 	for _, b := range env.Data.Books {
-		if b.Category == category {
-			inCat = append(inCat, b)
+		prices := pricesByCategory[b.Category]
+		if !slices.Contains(prices, b.Price) {
+			pricesByCategory[b.Category] = append(prices, b.Price)
 		}
 	}
-	p1 := inCat[env.Rand.Intn(len(inCat))].Price
-	p2 := inCat[env.Rand.Intn(len(inCat))].Price
-	if p1 > p2 {
-		p1, p2 = p2, p1
+	var eligible []string
+	for _, c := range env.Data.Categories() { // 정렬된 순서라 시드가 같으면 결과도 같다
+		if len(pricesByCategory[c]) >= 2 {
+			eligible = append(eligible, c)
+		}
 	}
-	return category, p1, p2
+	category = eligible[env.Rand.Intn(len(eligible))]
+	prices := pricesByCategory[category]
+	i := env.Rand.Intn(len(prices))
+	j := env.Rand.Intn(len(prices) - 1)
+	if j >= i {
+		j++ // i 를 건너뛰어 서로 다른 위치를 고른다
+	}
+	lo, hi = prices[i], prices[j]
+	if lo > hi {
+		lo, hi = hi, lo
+	}
+	return category, lo, hi
 }
 
 func checkA2(ctx context.Context, env *Env) Result {
