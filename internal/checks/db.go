@@ -75,7 +75,7 @@ func describeDBError(err error, rawURL string) string {
 		return "호스트를 찾을 수 없습니다. 연결 문자열의 호스트(ep-xxx.neon.tech) 오타를 확인하세요"
 	}
 	msg := scrubPassword(err.Error(), rawURL)
-	if strings.Contains(strings.ToLower(msg), "ssl") {
+	if strings.Contains(strings.ToLower(msg), "ssl") || strings.Contains(strings.ToLower(msg), "tls") {
 		return "SSL 연결에 문제가 있습니다. 연결 문자열 끝에 ?sslmode=require 가 있는지 확인하세요: " + msg
 	}
 	return "연결에 실패했습니다: " + msg
