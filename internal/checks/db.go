@@ -68,15 +68,15 @@ func describeDBError(err error, rawURL string) string {
 	case errors.Is(err, context.DeadlineExceeded):
 		return "연결 시간(15초)이 초과되었습니다. 인터넷 연결과 Neon 프로젝트가 켜져 있는지(일시 정지 상태가 아닌지) 확인하세요"
 	case errors.As(err, &pgErr) && (pgErr.Code == "28P01" || pgErr.Code == "28000"):
-		return "인증에 실패했습니다. 연결 문자열의 사용자 이름과 비밀번호를 Neon 대시보드에서 다시 복사하세요"
+		return "인증에 실패했습니다. DB 사용자명과 비밀번호를 Neon 대시보드에서 다시 복사하세요"
 	case errors.As(err, &pgErr) && pgErr.Code == "3D000":
-		return "데이터베이스 이름이 없습니다. 연결 문자열 끝의 /<db이름> 을 확인하세요"
+		return "데이터베이스 이름이 없습니다. Neon 주소 끝의 /<db이름> 을 확인하세요"
 	case errors.As(err, &dnsErr):
-		return "호스트를 찾을 수 없습니다. 연결 문자열의 호스트(ep-xxx.neon.tech) 오타를 확인하세요"
+		return "호스트를 찾을 수 없습니다. Neon 주소의 호스트(ep-xxx.neon.tech) 오타를 확인하세요"
 	}
 	msg := scrubPassword(err.Error(), rawURL)
 	if strings.Contains(strings.ToLower(msg), "ssl") || strings.Contains(strings.ToLower(msg), "tls") {
-		return "SSL 연결에 문제가 있습니다. 연결 문자열 끝에 ?sslmode=require 가 있는지 확인하세요: " + msg
+		return "SSL 연결에 문제가 있습니다. Neon 주소 끝에 ?sslmode=require 가 있는지 확인하세요: " + msg
 	}
 	return "연결에 실패했습니다: " + msg
 }
