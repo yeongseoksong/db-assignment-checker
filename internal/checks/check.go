@@ -1,4 +1,4 @@
-// Package checks 는 채점 항목(정적·동적)과 그 레지스트리를 정의한다.
+// Package checks 는 채점 항목(DB·API·오류처리)과 그 레지스트리를 정의한다.
 package checks
 
 import (
