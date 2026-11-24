@@ -119,7 +119,7 @@ func TestRunWritesEncryptedResultWithoutLeakingPassword(t *testing.T) {
 	if last[1] != "TOTAL" || last[5] != "통과 5 / 전체 8" {
 		t.Errorf("TOTAL 행이 이상합니다: %v", last)
 	}
-	if len(records[0]) != 9 || records[0][4] != "passed" {
+	if len(records[0]) != 10 || records[0][4] != "passed" || records[0][9] != "mac_addresses" {
 		t.Errorf("헤더가 이상합니다: %v", records[0])
 	}
 	if !strings.Contains(string(logData), "seed=") || !strings.Contains(string(logData), "HTTP 응답") {

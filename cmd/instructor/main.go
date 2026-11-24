@@ -14,9 +14,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 
 	"dbchecker/internal/report"
@@ -140,6 +143,7 @@ func decrypt(args []string) error {
 
 	logDir := filepath.Join(filepath.Dir(*outPath), "logs")
 	invalid, logs := 0, 0
+	var merged [][]string // 정상적으로 읽은 레코드만 (MAC 중복 검사용)
 	for _, path := range inputs {
 		base := filepath.Base(path)
 		sub := readSubmission(path, priv, secret)
@@ -148,6 +152,7 @@ func decrypt(args []string) error {
 			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, sub.Integrity)
 		}
 		records := sub.Records
+		merged = append(merged, records...)
 		if records == nil {
 			// 읽을 수 없는 파일도 흔적을 남긴다. 학번은 파일 이름에서 추정한다.
 			row := make([]string, len(report.Header))
@@ -174,7 +179,71 @@ func decrypt(args []string) error {
 	}
 	fmt.Printf("제출 %d개 병합 (정상 %d, 의심 %d) -> %s\n", len(inputs), len(inputs)-invalid, invalid, *outPath)
 	fmt.Printf("로그 %d개 복호화 -> %s\n", logs, logDir)
+	for _, p := range sharedDevices(merged) {
+		fmt.Fprintf(os.Stderr, "경고: %s 와 %s 의 MAC 주소가 겹침 (%d/%d개, 다 겹치면 같은 기기일 가능성이 큼)\n", p.A, p.B, p.Shared, p.Fewer)
+	}
 	return nil
+}
+
+// devicePair 는 MAC 주소가 겹치는 학번 두 개다.
+type devicePair struct {
+	A, B   string // A < B
+	Shared int    // 겹친 MAC 개수
+	Fewer  int    // 두 학번 중 MAC 이 적은 쪽의 개수 (같은 기기면 Shared 와 거의 같다)
+}
+
+// sharedDevices 는 MAC 주소가 하나라도 겹치는 학번 쌍을 겹친 개수가 많은 순으로 돌려준다.
+// 가상 인터페이스 주소는 기기끼리 우연히 한두 개 겹칠 수 있으므로 판단은 Shared/Fewer 비율로 한다.
+func sharedDevices(records [][]string) []devicePair {
+	macCol := slices.Index(report.Header, "mac_addresses")
+	macsByID := map[string]map[string]bool{}
+	for _, rec := range records {
+		if len(rec) <= macCol || rec[0] == "" {
+			continue
+		}
+		if macsByID[rec[0]] == nil {
+			macsByID[rec[0]] = map[string]bool{}
+		}
+		for _, mac := range strings.Split(rec[macCol], ";") {
+			if isDistinctiveMAC(mac) {
+				macsByID[rec[0]][mac] = true
+			}
+		}
+	}
+	var ids []string
+	for id := range macsByID {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	var pairs []devicePair
+	for i := 0; i < len(ids); i++ {
+		for j := i + 1; j < len(ids); j++ {
+			a, b := macsByID[ids[i]], macsByID[ids[j]]
+			shared := 0
+			for mac := range a {
+				if b[mac] {
+					shared++
+				}
+			}
+			if shared == 0 {
+				continue
+			}
+			pairs = append(pairs, devicePair{A: ids[i], B: ids[j], Shared: shared, Fewer: min(len(a), len(b))})
+		}
+	}
+	sort.SliceStable(pairs, func(i, j int) bool { return pairs[i].Shared > pairs[j].Shared })
+	return pairs
+}
+
+// isDistinctiveMAC 은 기기를 구별하는 데 쓸 만한 MAC 인지 본다.
+// 뒤 3바이트가 모두 0 인 주소(예: VirtualBox host-only 0a:00:27:00:00:00)는 여러 기기에서 똑같이 나와서 뺀다.
+func isDistinctiveMAC(s string) bool {
+	hw, err := net.ParseMAC(s)
+	if err != nil || len(hw) < 6 {
+		return false
+	}
+	return hw[3]|hw[4]|hw[5] != 0
 }
 
 // submission 은 제출 zip 하나를 풀어 읽은 결과다.

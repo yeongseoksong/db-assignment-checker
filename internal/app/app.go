@@ -12,11 +12,14 @@ import (
 	"io"
 	"log/slog"
 	"math/rand"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -240,20 +243,40 @@ func writeSubmission(path string, entries []zipEntry) error {
 
 func buildRows(cfg Config, in Input, now time.Time, res *Result) []report.Row {
 	host, _ := os.Hostname()
+	macs := macAddresses()
 	at := now.Format(time.RFC3339)
 	var rows []report.Row
 	for _, o := range res.Outcomes {
 		rows = append(rows, report.Row{
 			StudentID: in.StudentID, CheckID: o.Check.ID, Group: o.Check.Group, Title: o.Check.Title,
-			Passed: o.Passed(), Detail: o.Result.Detail, CheckedAt: at, Version: cfg.Version, Host: host,
+			Passed: o.Passed(), Detail: o.Result.Detail, CheckedAt: at, Version: cfg.Version, Host: host, MACs: macs,
 		})
 	}
 	rows = append(rows, report.Row{
 		StudentID: in.StudentID, CheckID: "TOTAL", Group: "합계", Title: "합계",
 		Passed: res.Passed == res.Total, Detail: fmt.Sprintf("통과 %d / 전체 %d", res.Passed, res.Total),
-		CheckedAt: at, Version: cfg.Version, Host: host,
+		CheckedAt: at, Version: cfg.Version, Host: host, MACs: macs,
 	})
 	return rows
+}
+
+// macAddresses 는 루프백이 아닌 인터페이스의 MAC 주소를 정렬해 ";" 로 이어 돌려준다.
+// 무작위·가상 주소도 섞여 있으므로 교수자 쪽에서는 겹친 개수로 같은 기기인지 판단한다.
+func macAddresses() string {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return ""
+	}
+	var macs []string
+	for _, ifc := range ifaces {
+		if ifc.Flags&net.FlagLoopback != 0 || len(ifc.HardwareAddr) == 0 {
+			continue
+		}
+		macs = append(macs, ifc.HardwareAddr.String())
+	}
+	sort.Strings(macs)
+	macs = slices.Compact(macs) // 같은 주소를 쓰는 인터페이스가 여럿일 수 있다
+	return strings.Join(macs, ";")
 }
 
 func newLogger(w io.Writer) *slog.Logger {

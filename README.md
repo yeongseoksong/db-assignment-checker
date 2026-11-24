@@ -45,7 +45,9 @@ go run ./cmd/instructor decrypt -key keys/private.key -hmac keys/hmac.secret -ou
 
 `merged.csv` 는 UTF-8 BOM 이 붙어 엑셀에서 한글이 깨지지 않습니다. 열은 아래와 같고 마지막에 `integrity`, `source_file` 이 붙습니다.
 
-`student_id, check_id, group, title, passed, detail, checked_at, checker_version, hostname`
+`student_id, check_id, group, title, passed, detail, checked_at, checker_version, hostname, mac_addresses`
+
+`mac_addresses` 는 채점기를 실행한 기기의 MAC 주소들(`;` 구분)입니다. 서로 다른 학번의 MAC 주소가 겹치면 표준에러에 `경고: A 와 B 의 MAC 주소가 겹침 (12/12개, ...)` 처럼 겹친 개수 / 적은 쪽의 MAC 개수가 나옵니다. 같은 기기면 거의 전부 겹치고, 가상 인터페이스 주소가 우연히 겹친 경우는 한두 개뿐입니다. 뒤 3바이트가 0 인 주소(VirtualBox host-only 등 여러 기기에서 똑같이 나오는 주소)는 비교하지 않습니다. 실습실 공용 PC 에서는 정상 제출끼리도 겹칠 수 있으니 `checked_at` 과 로그를 함께 확인하세요. 학생에게는 "채점기가 기기 식별 정보(MAC 주소)를 암호화해 기록한다" 고 미리 알리는 것을 권합니다.
 
 검사마다 한 줄이고, 학생마다 `TOTAL` 행(detail 은 `통과 n / 전체 m`)이 있습니다.
 복호화에 실패했거나 HMAC 이 맞지 않는 파일도 병합하되 `integrity` 열이 `INVALID: 사유` 이고 표준에러에 경고가 나옵니다. 정상은 `OK` 입니다.

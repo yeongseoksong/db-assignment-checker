@@ -15,7 +15,7 @@ import (
 // Header 는 결과 CSV 의 열 이름이다.
 var Header = []string{
 	"student_id", "check_id", "group", "title", "passed",
-	"detail", "checked_at", "checker_version", "hostname",
+	"detail", "checked_at", "checker_version", "hostname", "mac_addresses",
 }
 
 const hmacPrefix = "#hmac,"
@@ -25,13 +25,14 @@ type Row struct {
 	StudentID, CheckID, Group, Title string
 	Passed                           bool
 	Detail, CheckedAt, Version, Host string
+	MACs                             string // 실행한 기기의 MAC 주소들 (";" 구분, 정렬됨)
 }
 
 func (r Row) record() []string {
 	return []string{
 		r.StudentID, r.CheckID, r.Group, r.Title,
 		strconv.FormatBool(r.Passed),
-		r.Detail, r.CheckedAt, r.Version, r.Host,
+		r.Detail, r.CheckedAt, r.Version, r.Host, r.MACs,
 	}
 }
 
