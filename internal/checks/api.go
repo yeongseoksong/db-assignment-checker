@@ -187,14 +187,16 @@ func (v listVerdict) exact() bool {
 // judgeList 는 응답 원소가 기대 책 목록과 정확히 같은 집합일 때만 통과시킨다.
 func judgeList(expected []dataset.Book, all []dataset.Book, items []any) Result {
 	v := listVerdict{Expected: len(expected)}
-	used := make([]bool, len(expected))
-	for _, item := range items {
-		var candidates []string
-		stringValues(item, &candidates)
-		idx := matchIndex(candidates, expected, used)
+	allCandidates := make([][]string, len(items))
+	for i, item := range items {
+		stringValues(item, &allCandidates[i])
+	}
+	assigned, used := assignBooks(expected, items, allCandidates)
+	for i, item := range items {
+		candidates := allCandidates[i]
+		idx := assigned[i]
 		switch {
 		case idx >= 0:
-			used[idx] = true
 			book := expected[idx]
 			if !hasPrice(item, book.Price) {
 				v.WrongPrice = append(v.WrongPrice, fmt.Sprintf("%q(기대 %.2f)", shorten(book.Title, 40), book.Price))
@@ -225,16 +227,57 @@ func firstValue(candidates []string) string {
 	return fmt.Sprintf("%q", shorten(candidates[0], 40))
 }
 
+// assignBooks 는 응답 원소마다 기대 책을 하나씩 배정한다.
+// assigned[i] 는 items[i] 에 배정된 expected 의 위치(없으면 -1)이고, used[j] 는 expected[j] 가 배정되었는지다.
+// 한 원소의 제목이 여러 책과 맞을 수 있다(제목이 같은 책 두 권, "Harry Potter and the ..." 같은 잘린 제목).
+// 제목만 보고 앞에서부터 배정하면 가격이 엇갈리므로, 제목과 가격이 모두 맞는 책을 먼저 배정하고
+// 남은 원소만 제목으로 배정한다.
+func assignBooks(expected []dataset.Book, items []any, allCandidates [][]string) (assigned []int, used []bool) {
+	assigned = make([]int, len(items))
+	used = make([]bool, len(expected))
+	for i := range assigned {
+		assigned[i] = -1
+	}
+	for i, item := range items {
+		for j, book := range expected {
+			if !used[j] && anyTitleMatches(allCandidates[i], book.Title) && hasPrice(item, book.Price) {
+				assigned[i] = j
+				used[j] = true
+				break
+			}
+		}
+	}
+	for i := range items {
+		if assigned[i] >= 0 {
+			continue
+		}
+		j := matchIndex(allCandidates[i], expected, used)
+		if j >= 0 {
+			assigned[i] = j
+			used[j] = true
+		}
+	}
+	return assigned, used
+}
+
+// anyTitleMatches 는 후보 문자열 중 하나라도 제목과 맞으면 true 다.
+func anyTitleMatches(candidates []string, title string) bool {
+	for _, c := range candidates {
+		if titleMatches(c, title) {
+			return true
+		}
+	}
+	return false
+}
+
 // matchIndex 는 후보 문자열 중 하나라도 맞는 첫 기대 책의 위치를 돌려준다. used 가 true 인 책은 건너뛴다.
 func matchIndex(candidates []string, expected []dataset.Book, used []bool) int {
 	for i, b := range expected {
 		if used != nil && used[i] {
 			continue
 		}
-		for _, c := range candidates {
-			if titleMatches(c, b.Title) {
-				return i
-			}
+		if anyTitleMatches(candidates, b.Title) {
+			return i
 		}
 	}
 	return -1

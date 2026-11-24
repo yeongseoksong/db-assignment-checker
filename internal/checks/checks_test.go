@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 
@@ -150,6 +151,55 @@ func TestJudgeList(t *testing.T) {
 		}
 		if !c.pass && !strings.Contains(res.Detail, "가격") {
 			t.Errorf("가격 %s: Detail 에 가격 문제를 적어야 합니다: %s", c.name, res.Detail)
+		}
+	}
+}
+
+// truncateWords 는 사이트 목록 페이지가 제목을 자르는 방식(앞 4단어 + " ...")이다.
+func truncateWords(title string) string {
+	words := strings.Fields(title)
+	if len(words) <= 4 {
+		return title
+	}
+	return strings.Join(words[:4], " ") + " ..."
+}
+
+// 정답 서버는 응답 순서나 제목 형태와 상관없이 항상 통과해야 한다.
+// 제목이 같은 책(Fantasy 의 "The Star-Touched Queen" 두 권)과 잘린 제목이 겹치는 책
+// ("Harry Potter and the ...")이 있어도 가격이 엇갈려 짝지어지면 안 된다.
+func TestJudgeListPassesCorrectServerInAnyOrder(t *testing.T) {
+	ds := loadData(t)
+	orders := map[string]func(books []dataset.Book){
+		"사이트 순서": func(books []dataset.Book) {},
+		"가격 오름차순": func(books []dataset.Book) {
+			sort.SliceStable(books, func(i, j int) bool { return books[i].Price < books[j].Price })
+		},
+		"가격 내림차순": func(books []dataset.Book) {
+			sort.SliceStable(books, func(i, j int) bool { return books[i].Price > books[j].Price })
+		},
+		"제목순": func(books []dataset.Book) {
+			sort.SliceStable(books, func(i, j int) bool { return books[i].Title < books[j].Title })
+		},
+	}
+	titles := map[string]func(string) string{
+		"전체 제목": func(title string) string { return title },
+		"잘린 제목": truncateWords,
+	}
+	for _, category := range ds.Categories() {
+		expected := ds.Query(category, 0, 1000)
+		for orderName, reorder := range orders {
+			for titleName, titleOf := range titles {
+				served := append([]dataset.Book{}, expected...)
+				reorder(served)
+				var items []any
+				for _, b := range served {
+					items = append(items, map[string]any{"title": titleOf(b.Title), "price": b.Price, "category": b.Category})
+				}
+				res := judgeList(expected, ds.Books, items)
+				if !res.Passed {
+					t.Errorf("%s / %s / %s: 정답 서버가 실패했습니다: %s", category, orderName, titleName, res.Detail)
+				}
+			}
 		}
 	}
 }
