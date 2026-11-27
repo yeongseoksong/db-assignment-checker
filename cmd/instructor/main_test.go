@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -52,7 +53,7 @@ func TestSharedDevicesNoOverlap(t *testing.T) {
 }
 
 // writeZip 은 이름→내용으로 제출 zip 을 만든다.
-func writeZip(t *testing.T, entries map[string][]byte) string {
+func writeZip(t testing.TB, entries map[string][]byte) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "submit_20231234_x.zip")
 	file, err := os.Create(path)
@@ -107,6 +108,14 @@ func TestReadSubmission(t *testing.T) {
 		}
 	})
 
+	t.Run("결과 파일이 두 개면 거부", func(t *testing.T) {
+		path := writeZip(t, map[string][]byte{"result_a.enc": sealedResult, "result_b.enc": sealedResult, "checker_20231234_x.log.enc": sealedLog})
+		sub := readSubmission(path, priv, secret)
+		if !strings.Contains(sub.Integrity, "두 개 이상") {
+			t.Errorf("같은 종류 항목이 여러 개면 거부해야 합니다: %s", sub.Integrity)
+		}
+	})
+
 	t.Run(".enc 가 아닌 항목은 읽지 않음", func(t *testing.T) {
 		huge := make([]byte, maxEntryBytes+1)
 		path := writeZip(t, map[string][]byte{"result_20231234_x.enc": sealedResult, "checker_20231234_x.log.enc": sealedLog, "README.txt": huge})
@@ -115,4 +124,68 @@ func TestReadSubmission(t *testing.T) {
 			t.Errorf("관계없는 항목은 무시해야 합니다: %s", sub.Integrity)
 		}
 	})
+}
+
+// FuzzReadSubmission 은 학생이 낸 아무 파일을 제출 zip 으로 읽을 때를 흉내 낸다.
+// 패닉이 나면 안 되고, 정상 제출을 한 바이트라도 바꾼 것은 OK 로 판정되면 안 된다.
+func FuzzReadSubmission(f *testing.F) {
+	priv, err := report.GenerateKey()
+	if err != nil {
+		f.Fatal(err)
+	}
+	secret := []byte("test-secret")
+	csvBytes, _ := report.BuildCSV([]report.Row{{StudentID: "20231234", CheckID: "TOTAL"}}, secret)
+	sealedResult, _ := report.Seal(&priv.PublicKey, csvBytes)
+	sealedLog, _ := report.Seal(&priv.PublicKey, []byte("로그"))
+	seedPath := writeZip(f, map[string][]byte{"result_20231234_x.enc": sealedResult, "checker_20231234_x.log.enc": sealedLog})
+	original, err := os.ReadFile(seedPath)
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Add(original)
+	f.Add([]byte("PK\x03\x04"))
+	f.Add([]byte{})
+	dir := f.TempDir()
+	f.Fuzz(func(t *testing.T, data []byte) {
+		path := filepath.Join(dir, "submit_fuzz.zip")
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		sub := readSubmission(path, priv, secret)
+		if bytes.Equal(data, original) {
+			if sub.Integrity != "OK" {
+				t.Fatalf("정상 제출이 OK 가 아닙니다: %s", sub.Integrity)
+			}
+			return
+		}
+		if sub.Integrity == "OK" && !sameContent(t, data, original) {
+			t.Fatal("내용이 바뀐 제출이 OK 로 판정됐습니다")
+		}
+	})
+}
+
+// sameContent 는 두 zip 의 항목 이름과 내용이 같은지 본다.
+// zip 은 주석·타임스탬프 같은 겉모양만 달라도 바이트가 달라지므로, 그런 변화는 OK 여도 된다.
+func sameContent(t *testing.T, a, b []byte) bool {
+	t.Helper()
+	read := func(data []byte) map[string]string {
+		zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+		if err != nil {
+			return nil
+		}
+		out := map[string]string{}
+		for _, f := range zr.File {
+			if !strings.HasSuffix(f.Name, ".enc") {
+				continue
+			}
+			content, err := readZipEntry(f)
+			if err != nil {
+				return nil
+			}
+			out[f.Name] = string(content)
+		}
+		return out
+	}
+	ca, cb := read(a), read(b)
+	return ca != nil && reflect.DeepEqual(ca, cb)
 }

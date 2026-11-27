@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 # test 의 <( ) 비교에 bash 가 필요하다
 SHELL := /bin/bash
 
-.PHONY: keys snapshot test dist clean
+.PHONY: keys snapshot test fuzz dist clean
 
 keys:
 	go run ./cmd/instructor keygen -dir keys
@@ -47,6 +47,19 @@ dist:
 	done
 	rm -rf build
 	@ls -l dist/*.zip
+
+# 퍼징: 신뢰할 수 없는 입력(학생 서버 응답, 제출 파일)을 다루는 코드에 무작위 입력을 넣어 본다.
+# 대상마다 FUZZTIME 동안 돈다. 실패 입력은 해당 패키지의 testdata/fuzz/ 에 저장되어 이후 go test 에서 계속 검사된다.
+# 최소화(-fuzzminimizetime)는 끈다. 켜 두면 새 입력을 찾을 때마다 수십 초씩 실행이 멈춘 것처럼 보인다.
+FUZZTIME ?= 30s
+FUZZ_TARGETS = ./internal/checks:FuzzJudgeAnyResponse ./internal/checks:FuzzCorrectResponseAlwaysPasses \
+	./internal/report:FuzzOpenRejectsAnythingElse ./internal/report:FuzzCSVRoundTrip ./internal/report:FuzzParseCSVAnyInput \
+	./cmd/instructor:FuzzReadSubmission
+fuzz:
+	@for t in $(FUZZ_TARGETS); do \
+		pkg=$${t%%:*}; name=$${t##*:}; echo "== $$name ($(FUZZTIME))"; \
+		go test $$pkg -run '^$$' -fuzz "^$$name\$$" -fuzztime $(FUZZTIME) -fuzzminimizetime 0 2>&1 | grep -vE '^fuzz: elapsed' || exit 1; \
+	done
 
 clean:
 	rm -rf build dist

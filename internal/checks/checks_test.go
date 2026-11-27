@@ -16,7 +16,7 @@ import (
 	"dbchecker/internal/fakestudent"
 )
 
-func loadData(t *testing.T) *dataset.Dataset {
+func loadData(t testing.TB) *dataset.Dataset {
 	t.Helper()
 	ds, err := dataset.Load()
 	if err != nil {

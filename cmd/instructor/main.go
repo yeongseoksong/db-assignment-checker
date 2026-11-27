@@ -276,14 +276,20 @@ func readSubmission(path string, priv *rsa.PrivateKey, secret []byte) submission
 		if !strings.HasSuffix(f.Name, ".enc") {
 			continue // 결과·로그가 아닌 항목은 읽지 않는다
 		}
+		// 정상 제출에는 결과와 로그가 하나씩뿐이다. 같은 종류가 또 나오면 더 읽지 않는다
+		// (항목마다 16MB 제한이 있어도 개수 제한이 없으면 작은 zip 으로 수 GB 를 읽게 할 수 있다).
+		isLog := strings.HasSuffix(f.Name, ".log.enc")
+		if (isLog && sealedLog != nil) || (!isLog && sealedResult != nil) {
+			return submission{Integrity: "INVALID: zip 에 결과 또는 로그 파일이 두 개 이상 있음"}
+		}
 		data, err := readZipEntry(f)
 		if err != nil {
 			return submission{Integrity: "INVALID: zip 항목 " + f.Name + " 을 읽을 수 없음 (" + err.Error() + ")"}
 		}
-		if strings.HasSuffix(f.Name, ".log.enc") {
+		if isLog {
 			sealedLog = data
 			logName = strings.TrimSuffix(filepath.Base(f.Name), ".enc")
-		} else if strings.HasSuffix(f.Name, ".enc") {
+		} else {
 			sealedResult = data
 		}
 	}
