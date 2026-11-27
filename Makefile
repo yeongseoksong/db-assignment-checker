@@ -1,6 +1,9 @@
 # 교수자용 작업 모음. 사용법은 README.md 를 보세요.
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
+# test 의 <( ) 비교에 bash 가 필요하다
+SHELL := /bin/bash
+
 .PHONY: keys snapshot test dist clean
 
 keys:
@@ -13,6 +16,10 @@ test:
 	@# ./... 는 testdata/ 폴더를 건너뛰므로 가짜 서버는 따로 지정한다
 	go vet ./... ./testdata/fakeserver
 	go test ./...
+	@# OS별 대응은 사용법(guide.md)과 공지(notice.md)에 똑같이 쓴다. 한쪽만 고치면 여기서 실패한다.
+	@diff -B <(sed -n '/^## OS별 대응/,/^## [^O]/p' docs/guide.md | sed '/^## [^O]/d') \
+	      <(sed -n '/^## OS별 대응/,/^## [^O]/p' docs/notice.md | sed '/^## [^O]/d') \
+	  || (echo "docs/guide.md 와 docs/notice.md 의 'OS별 대응' 부분이 다릅니다. 둘을 똑같이 맞추세요" && exit 1)
 
 # keys/ 의 공개키와 HMAC 비밀키를 바이너리에 주입해 플랫폼별로 크로스컴파일한다.
 # 중간 파일은 build/ 에서 만들고 dist/ 에는 완성된 zip 만 쓴다.
