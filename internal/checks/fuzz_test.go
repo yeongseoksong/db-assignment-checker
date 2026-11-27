@@ -115,7 +115,7 @@ func TestPanickingCheckIsRecordedNotFatal(t *testing.T) {
 	}
 	env := newEnv(t, "http://127.0.0.1:1")
 	env.BaseURL = ""
-	outcomes := runChecks(context.Background(), env, nil, nil)
+	outcomes := runChecks(context.Background(), env, nil)
 	if len(outcomes) != 2 || outcomes[0].Passed() || !strings.Contains(outcomes[0].Result.Detail, "채점기 내부 오류") || !outcomes[1].Passed() {
 		t.Fatalf("패닉은 해당 검사 실패로 기록하고 다음 검사로 넘어가야 합니다: %+v", outcomes)
 	}

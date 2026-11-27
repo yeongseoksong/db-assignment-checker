@@ -20,17 +20,17 @@ func (o Outcome) Passed() bool {
 	return o.Result.Passed
 }
 
-// RunAll 은 표의 검사를 순서대로 실행한다. 각 검사가 끝날 때마다 onDone 을 부른다(nil 가능).
+// RunAll 은 표의 검사를 순서대로 실행한다.
 // 연결 문자열이 없으면 DB 검사, 서버에 연결할 수 없으면 동적 검사는 전부 실패다.
-func RunAll(ctx context.Context, env *Env, onDone func(Outcome)) []Outcome {
+func RunAll(ctx context.Context, env *Env) []Outcome {
 	serverErr := probeServer(ctx, env)
 	if serverErr != nil {
 		env.Log.Warn("서버 연결 실패", "url", env.BaseURL, "err", serverErr)
 	}
-	return runChecks(ctx, env, serverErr, onDone)
+	return runChecks(ctx, env, serverErr)
 }
 
-func runChecks(ctx context.Context, env *Env, serverErr error, onDone func(Outcome)) []Outcome {
+func runChecks(ctx context.Context, env *Env, serverErr error) []Outcome {
 	var outcomes []Outcome
 	for _, c := range All {
 		var res Result
@@ -43,11 +43,7 @@ func runChecks(ctx context.Context, env *Env, serverErr error, onDone func(Outco
 			res = runOne(ctx, env, c)
 		}
 		env.Log.Info("검사 결과", "id", c.ID, "passed", res.Passed, "detail", res.Detail)
-		o := Outcome{Check: c, Result: res}
-		outcomes = append(outcomes, o)
-		if onDone != nil {
-			onDone(o)
-		}
+		outcomes = append(outcomes, Outcome{Check: c, Result: res})
 	}
 	return outcomes
 }

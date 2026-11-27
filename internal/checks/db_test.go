@@ -81,7 +81,7 @@ func TestPasswordNeverLogged(t *testing.T) {
 	var logBuf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	env := &Env{Data: loadData(t), HTTP: NewHTTPClient(log), Log: log, Rand: rand.New(rand.NewSource(1)), DBURL: connString, BaseURL: "http://127.0.0.1:1"}
-	outcomes := RunAll(context.Background(), env, nil)
+	outcomes := RunAll(context.Background(), env)
 	all := logBuf.String()
 	for _, o := range outcomes {
 		all += o.Result.Detail

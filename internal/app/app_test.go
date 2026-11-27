@@ -67,7 +67,7 @@ func TestRunWritesEncryptedResultWithoutLeakingPassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := Run(context.Background(), cfg, in, nil)
+	res, err := Run(context.Background(), cfg, in)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -60,12 +60,6 @@ go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 - macOS: 경고창에서 [완료] → 시스템 설정 → 개인정보 보호 및 보안 → "checker-macos 이(가) 차단되었습니다" 옆 [그래도 열기] → 암호 입력 → [그래도 열기].
 - Windows: "Windows 의 PC 보호" 창에서 [추가 정보] → [실행]. 백신이 파일을 지웠으면 Windows 보안 → 보호 기록에서 [디바이스에서 허용] 후 다시 받습니다.
 
-브라우저 없이 실행하려면 플래그로 값을 줍니다. 빠진 값은 물어봅니다.
-
-```sh
-./checker-macos -id 20231234 -db "jdbc:postgresql://ep-xxx.neon.tech/neondb" -db-user neondb_owner -port 8080
-```
-
 ## 채점기 시험해 보기
 
 학생 서버 대신 가짜 서버를 띄워 채점기가 제대로 잡아내는지 볼 수 있습니다. 정답 버전과 일부러 틀린 버전이 한꺼번에 포트별로 뜹니다.
@@ -75,7 +69,7 @@ go run ./testdata/fakeserver              # :8080 부터 버전마다 포트 하
 go run ./testdata/fakeserver -port 9000   # :9000 부터
 ```
 
-시작할 때 포트별 버전과 실패해야 하는 검사가 출력됩니다. 다른 터미널에서 채점기를 그 포트로 실행하세요. 가짜 서버는 DB 를 쓰지 않으므로 D1~D3 는 실패로 나옵니다.
+시작할 때 포트별 버전과 실패해야 하는 검사가 출력됩니다. 채점기 입력 창의 포트 칸에 그 포트를 넣으세요. 가짜 서버는 DB 를 쓰지 않으므로 D1~D3 는 실패로 나옵니다.
 
 ## 참고
 

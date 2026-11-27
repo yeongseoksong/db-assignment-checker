@@ -246,7 +246,7 @@ func TestVariantsFailExactlyExpectedChecks(t *testing.T) {
 				env := newEnv(t, srv.URL)
 				env.Seed = seed
 				env.Rand = rand.New(rand.NewSource(seed))
-				for _, o := range RunAll(context.Background(), env, nil) {
+				for _, o := range RunAll(context.Background(), env) {
 					if o.Check.Group == GroupDB {
 						continue
 					}
@@ -348,7 +348,7 @@ func TestServerDown(t *testing.T) {
 	srv := httptest.NewServer(nil)
 	url := srv.URL
 	srv.Close()
-	outcomes := RunAll(context.Background(), newEnv(t, url), nil)
+	outcomes := RunAll(context.Background(), newEnv(t, url))
 	p := passedMap(outcomes)
 	for _, id := range []string{"A1", "A2", "A3", "E1", "E2"} {
 		if p[id] {
@@ -363,7 +363,7 @@ func TestServerDown(t *testing.T) {
 func TestNoDBAndNoServerStillRunEveryCheck(t *testing.T) {
 	srv := httptest.NewServer(fakestudent.Handler(loadData(t), fakestudent.Options{}))
 	defer srv.Close()
-	outcomes := RunAll(context.Background(), newEnv(t, srv.URL), nil)
+	outcomes := RunAll(context.Background(), newEnv(t, srv.URL))
 	if len(outcomes) != len(All) {
 		t.Fatalf("모든 검사가 결과를 내야 합니다: %d/%d", len(outcomes), len(All))
 	}

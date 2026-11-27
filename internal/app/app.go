@@ -184,9 +184,9 @@ type Result struct {
 	Total      int
 }
 
-// Run 은 검사를 실행하고 암호화한 결과(.enc)와 로그(.log.enc)를 제출용 zip 하나로 쓴다. onDone 은 검사 하나가 끝날 때마다 불린다(nil 가능).
+// Run 은 검사를 실행하고 암호화한 결과(.enc)와 로그(.log.enc)를 제출용 zip 하나로 쓴다.
 // in 은 Validate 를 거친 값이어야 한다.
-func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome)) (*Result, error) {
+func Run(ctx context.Context, cfg Config, in Input) (*Result, error) {
 	if err := os.MkdirAll(cfg.OutDir, 0o755); err != nil {
 		return nil, fmt.Errorf("출력 폴더 %q 를 만들 수 없습니다. -out 으로 쓸 수 있는 폴더를 지정하세요: %w", cfg.OutDir, err)
 	}
@@ -214,7 +214,7 @@ func Run(ctx context.Context, cfg Config, in Input, onDone func(checks.Outcome))
 		HTTP: checks.NewHTTPClient(log), Rand: rand.New(rand.NewSource(seed)),
 	}
 
-	outcomes := checks.RunAll(ctx, env, onDone)
+	outcomes := checks.RunAll(ctx, env)
 	passed := 0
 	for _, o := range outcomes {
 		if o.Passed() {
