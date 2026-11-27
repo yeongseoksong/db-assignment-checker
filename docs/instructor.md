@@ -45,6 +45,7 @@ LMS 공지용 글은 `docs/notice.md` 입니다 (마감, 제출물, OS별 대응
 go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 ```
 
+- 같은 학생의 제출이 여러 개면 가장 최근 것(결과 안의 `checked_at` 기준) 하나만 반영하고, 나머지는 어떤 파일로 덮어썼는지 알려 줍니다. 학번은 파일 이름이 아니라 결과 안의 값으로 판단합니다.
 - `merged.csv`: 학생별·검사별 결과. `integrity` 가 `INVALID` 면 변조되었거나 파일이 빠진 제출입니다.
 - `score` / `max_score`: 검사별 점수와 배점. `TOTAL` 행은 학생 총점과 만점(100)입니다. 검사마다 12.5점이고, A2·A3 는 `12.5 × 맞은 건수 / 10` 이라 소수점이 나옵니다 (7/10 이면 8.75). `integrity` 가 `INVALID` 인 제출은 점수를 비워 둡니다. 배점은 `internal/checks/check.go` 의 검사 표에서 바꾸고 decrypt 를 다시 돌리면 됩니다 (채점기 재배포 불필요).
 - `rounds_passed` / `rounds_total`: A2·A3 는 무작위 10건을 모두 맞아야 `passed=true` 지만, 몇 건 맞았는지가 이 두 열에 남아 부분 점수를 줄 수 있습니다. 다른 검사는 빈 칸입니다. v1.0.0 으로 만든 결과는 이 열이 없어서 복호화한 로그에서 세어 채웁니다. 로그는 서명이 없으므로 결과의 통과 여부와 맞지 않으면 채우지 않고 경고합니다.

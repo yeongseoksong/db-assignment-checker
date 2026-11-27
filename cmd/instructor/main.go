@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"dbchecker/internal/checks"
 	"dbchecker/internal/report"
@@ -154,21 +155,18 @@ func decrypt(args []string) error {
 	w := csv.NewWriter(out)
 	_ = w.Write(append(append([]string{}, report.Header...), "score", "max_score", "integrity", "source_file")) // 쓰기 오류는 Flush 뒤 w.Error() 로 한꺼번에 확인한다
 
-	logDir := filepath.Join(filepath.Dir(*outPath), "logs")
-	invalid, logs := 0, 0
-	var merged [][]string // 정상적으로 읽은 레코드만 (MAC 중복 검사용)
+	// 1) 모든 제출을 읽는다
+	var all []entry
 	for _, path := range inputs {
 		base := filepath.Base(path)
 		sub := readSubmission(path, priv, secret)
 		if sub.Integrity != "OK" {
-			invalid++
 			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, sub.Integrity)
 		}
 		records := padRecords(sub.Records)
 		for _, warning := range fillRoundsFromLog(records, sub.Log) {
 			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, warning)
 		}
-		merged = append(merged, records...)
 		if records == nil {
 			// 읽을 수 없는 파일도 흔적을 남긴다. 학번은 파일 이름에서 추정한다.
 			row := make([]string, len(report.Header))
@@ -178,16 +176,34 @@ func decrypt(args []string) error {
 			}
 			records = [][]string{row}
 		}
-		scores := make([][2]string, len(records)) // 서명이 맞지 않는 제출은 점수를 비워 둔다
-		if sub.Integrity == "OK" {
-			scores = scoreRecords(records)
+		all = append(all, entry{base: base, sub: sub, records: records})
+	}
+
+	// 2) 같은 학생은 가장 최근 제출만 남긴다
+	kept, dropped := keepLatestPerStudent(all)
+	for _, d := range dropped {
+		fmt.Fprintf(os.Stderr, "알림: %s 는 같은 학번(%s)의 더 최근 제출 %s 로 덮어써서 반영하지 않습니다\n", d.dropped, d.studentID, d.keptBy)
+	}
+
+	// 3) 남은 제출을 쓴다
+	logDir := filepath.Join(filepath.Dir(*outPath), "logs")
+	invalid, logs := 0, 0
+	var merged [][]string // 정상적으로 읽은 레코드만 (MAC 중복 검사용)
+	for _, e := range kept {
+		if e.sub.Integrity != "OK" {
+			invalid++
 		}
-		for i, rec := range records {
-			_ = w.Write(append(append([]string{}, rec...), scores[i][0], scores[i][1], sub.Integrity, base)) // 위와 같음
+		merged = append(merged, e.sub.Records...)
+		scores := make([][2]string, len(e.records)) // 서명이 맞지 않는 제출은 점수를 비워 둔다
+		if e.sub.Integrity == "OK" {
+			scores = scoreRecords(e.records)
 		}
-		if sub.Log != nil {
-			if err := writeLog(logDir, sub.LogName, sub.Log); err != nil {
-				fmt.Fprintf(os.Stderr, "경고: %s: 로그를 쓸 수 없음: %v\n", base, err)
+		for i, rec := range e.records {
+			_ = w.Write(append(append([]string{}, rec...), scores[i][0], scores[i][1], e.sub.Integrity, e.base)) // 위와 같음
+		}
+		if e.sub.Log != nil {
+			if err := writeLog(logDir, e.sub.LogName, e.sub.Log); err != nil {
+				fmt.Fprintf(os.Stderr, "경고: %s: 로그를 쓸 수 없음: %v\n", e.base, err)
 			} else {
 				logs++
 			}
@@ -200,7 +216,8 @@ func decrypt(args []string) error {
 	if err := out.Close(); err != nil { // 디스크가 꽉 찼으면 여기서 드러난다
 		return fmt.Errorf("%s 를 저장하지 못했습니다: %w", *outPath, err)
 	}
-	fmt.Printf("제출 %d개 병합 (정상 %d, 의심 %d) -> %s\n", len(inputs), len(inputs)-invalid, invalid, *outPath)
+	fmt.Printf("제출 %d개 중 %d개 병합 (정상 %d, 의심 %d, 같은 학생의 이전 제출 %d개 제외) -> %s\n",
+		len(inputs), len(kept), len(kept)-invalid, invalid, len(dropped), *outPath)
 	fmt.Printf("로그 %d개 복호화 -> %s\n", logs, logDir)
 	for _, p := range sharedDevices(merged) {
 		fmt.Fprintf(os.Stderr, "경고: %s 와 %s 의 MAC 주소가 겹침 (%d/%d개, 다 겹치면 같은 기기일 가능성이 큼)\n", p.A, p.B, p.Shared, p.Fewer)
@@ -279,6 +296,70 @@ func padRecords(records [][]string) [][]string {
 		records[i] = rec
 	}
 	return records
+}
+
+// entry 는 읽어 들인 제출 하나다. records 는 merged.csv 에 쓸 행(읽지 못한 파일이면 학번만 든 한 행)이다.
+type entry struct {
+	base    string
+	sub     submission
+	records [][]string
+}
+
+func (e entry) studentID() string {
+	return e.records[0][slices.Index(report.Header, "student_id")]
+}
+
+// submittedAt 은 제출 시각이다. 서명으로 보호되는 결과 안의 검사 시각(checked_at)을 쓰고,
+// 내용을 읽지 못한 파일만 파일 이름(submit_학번_yyyyMMdd-HHmmss.zip)의 시각을 쓴다.
+func (e entry) submittedAt() time.Time {
+	checkedAt, err := time.Parse(time.RFC3339, e.records[0][slices.Index(report.Header, "checked_at")])
+	if err == nil {
+		return checkedAt
+	}
+	m := reFileTime.FindStringSubmatch(e.base)
+	if m != nil {
+		t, err := time.ParseInLocation("20060102-150405", m[1], time.Local)
+		if err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
+var reFileTime = regexp.MustCompile(`^submit_[A-Za-z0-9]+_(\d{8}-\d{6})\.zip$`)
+
+// droppedSubmission 은 더 최근 제출에 밀려 반영하지 않은 제출이다.
+type droppedSubmission struct {
+	studentID, dropped, keptBy string
+}
+
+// keepLatestPerStudent 는 학번마다 가장 최근 제출 하나만 남긴다 (입력 순서는 유지).
+// 학번은 파일 이름이 아니라 결과 안의 값이라, 남의 zip 이름만 바꿔도 덮어쓸 수 없다.
+// 학번을 알 수 없는 제출은 모두 남긴다. 시각이 같으면 나중에 주어진 파일을 남긴다.
+func keepLatestPerStudent(all []entry) ([]entry, []droppedSubmission) {
+	latest := map[string]int{} // 학번 -> all 의 위치
+	for i, e := range all {
+		id := e.studentID()
+		if id == "" {
+			continue
+		}
+		j, seen := latest[id]
+		if !seen || !e.submittedAt().Before(all[j].submittedAt()) {
+			latest[id] = i
+		}
+	}
+	var kept []entry
+	var dropped []droppedSubmission
+	for i, e := range all {
+		id := e.studentID()
+		j, has := latest[id]
+		if id == "" || !has || j == i {
+			kept = append(kept, e)
+			continue
+		}
+		dropped = append(dropped, droppedSubmission{studentID: id, dropped: e.base, keptBy: all[j].base})
+	}
+	return kept, dropped
 }
 
 // scoreRecords 는 한 제출의 레코드마다 [점수, 배점] 을 계산한다. 배점은 internal/checks 의 검사 표가 기준이다.

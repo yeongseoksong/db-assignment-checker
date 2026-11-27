@@ -151,6 +151,34 @@ func TestScoreRecords(t *testing.T) {
 	}
 }
 
+func TestKeepLatestPerStudent(t *testing.T) {
+	sub := func(base, studentID, checkedAt string) entry {
+		rec := make([]string, len(report.Header))
+		rec[slices.Index(report.Header, "student_id")] = studentID
+		rec[slices.Index(report.Header, "checked_at")] = checkedAt
+		return entry{base: base, records: [][]string{rec}}
+	}
+	all := []entry{
+		sub("a_new.zip", "20231234", "2026-12-04T23:00:00+09:00"),
+		sub("a_old.zip", "20231234", "2026-12-01T10:00:00+09:00"),
+		sub("b.zip", "20235678", "2026-12-02T10:00:00+09:00"),
+		sub("submit_20231234_20261204-235000.zip", "20231234", ""), // 읽지 못한 파일: 파일 이름 시각이 가장 최근
+		sub("unknown.zip", "", ""),                                 // 학번을 모르는 파일은 남긴다
+	}
+	kept, dropped := keepLatestPerStudent(all)
+	var keptNames []string
+	for _, e := range kept {
+		keptNames = append(keptNames, e.base)
+	}
+	want := []string{"b.zip", "submit_20231234_20261204-235000.zip", "unknown.zip"}
+	if !reflect.DeepEqual(keptNames, want) || len(dropped) != 2 {
+		t.Fatalf("남은 제출 %v (기대 %v), 제외 %+v", keptNames, want, dropped)
+	}
+	if dropped[0].keptBy != "submit_20231234_20261204-235000.zip" {
+		t.Errorf("무엇이 덮어썼는지 알려 줘야 합니다: %+v", dropped[0])
+	}
+}
+
 func TestReadSubmission(t *testing.T) {
 	priv, err := report.GenerateKey()
 	if err != nil {
