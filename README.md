@@ -71,6 +71,24 @@ go run ./testdata/fakeserver -port 9000   # :9000 부터
 
 시작할 때 포트별 버전과 실패해야 하는 검사가 출력됩니다. 채점기 입력 창의 포트 칸에 그 포트를 넣으세요. 가짜 서버는 DB 를 쓰지 않으므로 D1~D3 는 실패로 나옵니다.
 
+## 버전 배포 (GitHub Actions)
+
+`v` 로 시작하는 태그를 push 하면 `.github/workflows/release.yml` 이 테스트 → `make dist` → GitHub Release 에 zip 3개를 올립니다. 태그 이름이 채점기 버전이 되어 결과 CSV 의 `checker_version` 에 찍힙니다.
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+처음 한 번 저장소 Secrets 에 공개키와 HMAC 키를 등록해야 합니다. 개인키는 등록하지 않습니다.
+
+```sh
+gh secret set CHECKER_PUBLIC_KEY < keys/public.key
+gh secret set CHECKER_HMAC_SECRET < keys/hmac.secret
+```
+
+저장소는 비공개라 학생은 Release 에 접근할 수 없습니다. Release 에서 zip 을 받아 LMS 에 올리세요.
+
 ## 개발 명령
 
 | 명령 | 하는 일 |
