@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -84,6 +85,44 @@ func TestPadRecordsForOldResults(t *testing.T) {
 	got := padRecords([][]string{old})
 	if len(got[0]) != len(report.Header) || got[0][0] != "20231234" || got[0][len(report.Header)-1] != "" {
 		t.Fatalf("옛 결과를 새 열에 맞추지 못했습니다: %q", got[0])
+	}
+}
+
+func TestFillRoundsFromLog(t *testing.T) {
+	row := func(checkID, passed string) []string {
+		rec := make([]string, len(report.Header))
+		rec[slices.Index(report.Header, "check_id")] = checkID
+		rec[slices.Index(report.Header, "passed")] = passed
+		return rec
+	}
+	logLines := func(checkID string, passedRounds int) string {
+		var b strings.Builder
+		for i := 1; i <= 10; i++ {
+			fmt.Fprintf(&b, "time=x level=INFO msg=\"무작위 검사\" id=%s round=%d passed=%v detail=\"...\"\n", checkID, i, i <= passedRounds)
+		}
+		return b.String()
+	}
+	col := slices.Index(report.Header, "rounds_passed")
+
+	records := [][]string{row("A1", "true"), row("A2", "false"), row("A3", "true")}
+	warnings := fillRoundsFromLog(records, []byte(logLines("A2", 7)+logLines("A3", 10)))
+	if len(warnings) != 0 || records[1][col] != "7" || records[1][col+1] != "10" || records[2][col] != "10" || records[0][col] != "" {
+		t.Fatalf("로그에서 건수를 채우지 못했습니다: %q / 경고 %v", records, warnings)
+	}
+
+	// 결과는 실패인데 로그는 10/10 → 믿지 않고 비워 둔다
+	tampered := [][]string{row("A2", "false")}
+	warnings = fillRoundsFromLog(tampered, []byte(logLines("A2", 10)))
+	if len(warnings) != 1 || tampered[0][col] != "" {
+		t.Fatalf("결과와 맞지 않는 로그는 무시하고 경고해야 합니다: %q / 경고 %v", tampered, warnings)
+	}
+
+	// 이미 건수가 있는 새 결과는 로그로 덮어쓰지 않는다
+	fresh := [][]string{row("A2", "false")}
+	fresh[0][col], fresh[0][col+1] = "3", "10"
+	fillRoundsFromLog(fresh, []byte(logLines("A2", 9)))
+	if fresh[0][col] != "3" {
+		t.Fatalf("새 결과의 건수를 덮어썼습니다: %q", fresh[0])
 	}
 }
 

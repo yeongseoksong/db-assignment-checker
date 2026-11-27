@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"dbchecker/internal/report"
@@ -162,6 +163,9 @@ func decrypt(args []string) error {
 			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, sub.Integrity)
 		}
 		records := padRecords(sub.Records)
+		for _, warning := range fillRoundsFromLog(records, sub.Log) {
+			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, warning)
+		}
 		merged = append(merged, records...)
 		if records == nil {
 			// 읽을 수 없는 파일도 흔적을 남긴다. 학번은 파일 이름에서 추정한다.
@@ -269,6 +273,48 @@ func padRecords(records [][]string) [][]string {
 		records[i] = rec
 	}
 	return records
+}
+
+// oldRandomRounds 는 rounds 열이 없던 v1.0.0 채점기의 무작위 반복 횟수다.
+const oldRandomRounds = 10
+
+// reRoundLog 는 채점기 로그의 무작위 검사 한 건 기록이다.
+// 예: msg="무작위 검사" id=A2 round=3 passed=true detail=...
+var reRoundLog = regexp.MustCompile(`msg="무작위 검사" id=(A2|A3) round=\d+ passed=(true|false)`)
+
+// fillRoundsFromLog 는 rounds 열이 빈 A2·A3 행(v1.0.0 결과)을 로그에서 센 맞은 건수로 채운다.
+// 로그는 암호화만 되고 서명은 없으므로, 결과 행의 통과 여부와 맞지 않으면 채우지 않고 경고를 돌려준다.
+// (통과했다면 10/10 이어야 하고, 실패했다면 10/10 이면 안 된다)
+func fillRoundsFromLog(records [][]string, log []byte) []string {
+	if log == nil {
+		return nil
+	}
+	passedByCheck := map[string]int{}
+	for _, m := range reRoundLog.FindAllStringSubmatch(string(log), -1) {
+		if m[2] == "true" {
+			passedByCheck[m[1]]++
+		}
+	}
+	idCol := slices.Index(report.Header, "check_id")
+	passedCol := slices.Index(report.Header, "passed")
+	roundsPassedCol := slices.Index(report.Header, "rounds_passed")
+	roundsTotalCol := slices.Index(report.Header, "rounds_total")
+	var warnings []string
+	for _, rec := range records {
+		checkID := rec[idCol]
+		if (checkID != "A2" && checkID != "A3") || rec[roundsPassedCol] != "" {
+			continue
+		}
+		count := passedByCheck[checkID]
+		resultPassed := rec[passedCol] == "true"
+		if resultPassed != (count == oldRandomRounds) {
+			warnings = append(warnings, fmt.Sprintf("%s 의 로그 건수(%d/%d)가 결과(passed=%v)와 맞지 않아 건수를 비워 둡니다", checkID, count, oldRandomRounds, resultPassed))
+			continue
+		}
+		rec[roundsPassedCol] = strconv.Itoa(count)
+		rec[roundsTotalCol] = strconv.Itoa(oldRandomRounds)
+	}
+	return warnings
 }
 
 // submission 은 제출 zip 하나를 풀어 읽은 결과다.
