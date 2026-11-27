@@ -67,3 +67,7 @@ fuzz:
 
 clean:
 	rm -rf build dist
+
+
+mock:
+	go run ./testdata/fakeserver
