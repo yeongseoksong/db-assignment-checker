@@ -327,7 +327,7 @@ func TestMessageChecksExactMatch(t *testing.T) {
 			if res.Passed != c.want {
 				t.Errorf("통과=%v 기대 %v (%s)", res.Passed, c.want, res.Detail)
 			}
-			if c.name == "한 글자 다름" && !(strings.Contains(res.Detail, "기대") && strings.Contains(res.Detail, "받음")) {
+			if c.name == "한 글자 다름" && (!strings.Contains(res.Detail, "기대") || !strings.Contains(res.Detail, "받음")) {
 				t.Errorf("실패 Detail 에 기대/받음 문구가 있어야 합니다: %s", res.Detail)
 			}
 		})

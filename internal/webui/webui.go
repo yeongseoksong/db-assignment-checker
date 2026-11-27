@@ -94,7 +94,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	s.touch()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Write([]byte(strings.Replace(indexHTML, "__TOKEN__", s.token, 1)))
+	_, _ = w.Write([]byte(strings.Replace(indexHTML, "__TOKEN__", s.token, 1))) // 브라우저가 끊었으면 할 일이 없다
 }
 
 func (s *Server) authorized(r *http.Request) bool {
@@ -120,7 +120,7 @@ type runResponse struct {
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v) // 브라우저가 끊었으면 할 일이 없다
 }
 
 func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {

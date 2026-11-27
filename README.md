@@ -71,6 +71,14 @@ go run ./testdata/fakeserver -port 9000   # :9000 부터
 
 시작할 때 포트별 버전과 실패해야 하는 검사가 출력됩니다. 채점기 입력 창의 포트 칸에 그 포트를 넣으세요. 가짜 서버는 DB 를 쓰지 않으므로 D1~D3 는 실패로 나옵니다.
 
+## 개발 명령
+
+| 명령 | 하는 일 |
+|---|---|
+| `make test` | vet, 테스트, 안내문 OS별 대응 일치 확인 |
+| `make lint` | golangci-lint 정적 분석 (`brew install golangci-lint` 필요, 설정은 `.golangci.yml`) |
+| `make fuzz` | 퍼징. 대상마다 `FUZZTIME`(기본 30s) 동안 |
+
 ## 참고
 
 - DB 비밀번호는 로그와 결과 어디에도 남지 않습니다.

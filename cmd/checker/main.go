@@ -30,8 +30,13 @@ var (
 )
 
 func main() {
-	code := run()
-	os.Exit(code)
+	// 잘못된 옵션이면 flag.Parse 가 바로 종료하므로 main 에서만 해석한다 (revive deep-exit)
+	var outDir string
+	var noBrowser bool
+	flag.StringVar(&outDir, "out", "", "결과 파일을 저장할 폴더 (기본: 실행 파일 옆 results 폴더)")
+	flag.BoolVar(&noBrowser, "no-browser", false, "브라우저를 자동으로 열지 않음 (테스트용)")
+	flag.Parse()
+	os.Exit(run(outDir, noBrowser))
 }
 
 // runningFromTempDir 는 Windows 에서 zip 을 풀지 않고 안의 .exe 를 바로 실행했는지 본다.
@@ -59,20 +64,14 @@ func insideDir(path, dir string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-func run() int {
+func run(outDir string, noBrowser bool) int {
 	if runningFromTempDir() {
 		fmt.Println("zip 파일 안에서 바로 실행했습니다. 이대로는 제출 파일이 임시 폴더에 생겨 사라집니다.")
 		fmt.Println("zip 파일을 오른쪽 클릭 → [압축 풀기] 한 뒤, 풀린 폴더의 checker-windows-amd64.exe 를 실행하세요.")
 		fmt.Print("엔터를 누르면 종료합니다...")
-		bufio.NewReader(os.Stdin).ReadString('\n')
+		_, _ = bufio.NewReader(os.Stdin).ReadString('\n') // 엔터만 기다린다
 		return 1
 	}
-	var outDir string
-	var noBrowser bool
-	flag.StringVar(&outDir, "out", "", "결과 파일을 저장할 폴더 (기본: 실행 파일 옆 results 폴더)")
-	flag.BoolVar(&noBrowser, "no-browser", false, "브라우저를 자동으로 열지 않음 (테스트용)")
-	flag.Parse()
-
 	cfg, err := loadConfig(outDir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "오류:", err)
@@ -138,7 +137,8 @@ func runWeb(cfg app.Config, noBrowser bool) error {
 	}
 	addr := "http://" + listener.Addr().String() + "/"
 	httpServer := &http.Server{Handler: srv.Handler()}
-	go httpServer.Serve(listener)
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- httpServer.Serve(listener) }()
 
 	fmt.Println("입력 창 주소:", addr)
 	if noBrowser {
@@ -146,8 +146,12 @@ func runWeb(cfg app.Config, noBrowser bool) error {
 	} else if err := openBrowser(addr); err != nil {
 		fmt.Println("브라우저를 자동으로 열 수 없었습니다. 위 주소를 브라우저에 직접 붙여넣으세요.")
 	}
-	<-srv.Done
-	httpServer.Shutdown(context.Background())
+	select {
+	case <-srv.Done:
+	case err := <-serveErr: // Shutdown 전에 Serve 가 끝났다면 서버가 멈춘 것이다
+		return fmt.Errorf("입력 창 서버가 멈췄습니다. 채점기를 다시 실행하세요: %w", err)
+	}
+	_ = httpServer.Shutdown(context.Background()) // 곧 종료하므로 실패해도 할 일이 없다
 	fmt.Println("종료합니다.")
 	return nil
 }

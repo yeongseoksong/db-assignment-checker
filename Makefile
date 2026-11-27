@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 # test 의 <( ) 비교에 bash 가 필요하다
 SHELL := /bin/bash
 
-.PHONY: keys snapshot test fuzz dist clean
+.PHONY: keys snapshot test lint fuzz dist clean
 
 keys:
 	go run ./cmd/instructor keygen -dir keys
@@ -47,6 +47,10 @@ dist:
 	done
 	rm -rf build
 	@ls -l dist/*.zip
+
+# 정적 분석. golangci-lint 가 필요하다 (brew install golangci-lint). 설정은 .golangci.yml
+lint:
+	golangci-lint run ./... ./testdata/fakeserver
 
 # 퍼징: 신뢰할 수 없는 입력(학생 서버 응답, 제출 파일)을 다루는 코드에 무작위 입력을 넣어 본다.
 # 대상마다 FUZZTIME 동안 돈다. 실패 입력은 해당 패키지의 testdata/fuzz/ 에 저장되어 이후 go test 에서 계속 검사된다.

@@ -144,10 +144,12 @@ func decrypt(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
-	out.WriteString("\xef\xbb\xbf") // 엑셀에서 한글이 깨지지 않도록 BOM
+	defer out.Close()                                          // 아래에서 정상 경로의 Close 오류를 따로 확인한다
+	if _, err := out.WriteString("\xef\xbb\xbf"); err != nil { // 엑셀에서 한글이 깨지지 않도록 BOM
+		return fmt.Errorf("%s 에 쓸 수 없습니다: %w", *outPath, err)
+	}
 	w := csv.NewWriter(out)
-	w.Write(append(append([]string{}, report.Header...), "integrity", "source_file"))
+	_ = w.Write(append(append([]string{}, report.Header...), "integrity", "source_file")) // 쓰기 오류는 Flush 뒤 w.Error() 로 한꺼번에 확인한다
 
 	logDir := filepath.Join(filepath.Dir(*outPath), "logs")
 	invalid, logs := 0, 0
@@ -171,7 +173,7 @@ func decrypt(args []string) error {
 			records = [][]string{row}
 		}
 		for _, rec := range records {
-			w.Write(append(append([]string{}, rec...), sub.Integrity, base))
+			_ = w.Write(append(append([]string{}, rec...), sub.Integrity, base)) // 위와 같음
 		}
 		if sub.Log != nil {
 			if err := writeLog(logDir, sub.LogName, sub.Log); err != nil {
@@ -184,6 +186,9 @@ func decrypt(args []string) error {
 	w.Flush()
 	if err := w.Error(); err != nil {
 		return err
+	}
+	if err := out.Close(); err != nil { // 디스크가 꽉 찼으면 여기서 드러난다
+		return fmt.Errorf("%s 를 저장하지 못했습니다: %w", *outPath, err)
 	}
 	fmt.Printf("제출 %d개 병합 (정상 %d, 의심 %d) -> %s\n", len(inputs), len(inputs)-invalid, invalid, *outPath)
 	fmt.Printf("로그 %d개 복호화 -> %s\n", logs, logDir)

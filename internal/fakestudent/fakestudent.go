@@ -136,10 +136,10 @@ func writeBooks(w http.ResponseWriter, opt Options, books []bookJSON) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if opt.WrapInObject {
-		json.NewEncoder(w).Encode(map[string]any{"books": books})
+		_ = json.NewEncoder(w).Encode(map[string]any{"books": books})
 		return
 	}
-	json.NewEncoder(w).Encode(books)
+	_ = json.NewEncoder(w).Encode(books)
 }
 
 func pick(wrong bool, right string) string {
@@ -152,5 +152,5 @@ func pick(wrong bool, right string) string {
 func writeMessage(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"message": msg})
+	_ = json.NewEncoder(w).Encode(map[string]string{"message": msg})
 }
