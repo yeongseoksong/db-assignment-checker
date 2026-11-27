@@ -86,6 +86,9 @@
   .callout strong { color: var(--warn); }
   .muted { color: var(--muted); }
   ul.plain { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+  figure { margin: 4px 0 0; display: flex; flex-direction: column; gap: 6px; }
+  figure img { display: block; max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 1px 3px rgba(28, 35, 48, .08); }
+  figcaption { color: var(--muted); font-size: 0.86rem; }
   .key { display: inline-block; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 6px; font-size: 0.86em; background: var(--surface); white-space: nowrap; }
 </style>
 
@@ -117,8 +120,20 @@
     <ol class="steps">
       <li><div><p>Spring Boot 서버를 먼저 실행합니다.</p></div></li>
       <li><div><p>받은 zip을 풀고 채점기를 더블클릭하면 브라우저에 입력 창이 열립니다.</p></div></li>
-      <li><div><p>학번, 포트(보통 <code>8080</code>), <code>application.properties</code>의 DB 주소·사용자명·비밀번호를 넣고 <span class="key">검사 시작</span>을 누릅니다.</p></div></li>
-      <li><div><p>✘가 있으면 이유를 보고 고친 뒤 다시 검사합니다.</p></div></li>
+      <li><div>
+        <p>학번, 포트(보통 <code>8080</code>), <code>application.properties</code>의 DB 주소·사용자명·비밀번호를 넣고 <span class="key">검사 시작</span>을 누릅니다.</p>
+        <figure>
+          <img src="images/form.png" alt="채점기 입력 창. 학번 20231234, 포트 8080, Neon 주소, DB 사용자명 neondb_owner, 비밀번호가 입력된 모습" width="728" height="581">
+          <figcaption>입력 예시. Neon 주소는 <code>spring.datasource.url</code> 값을 그대로 붙여넣습니다. 스키마는 public 이 아닌 곳에 테이블을 만들었을 때만 넣습니다.</figcaption>
+        </figure>
+      </div></li>
+      <li><div>
+        <p>✘가 있으면 이유를 보고 고친 뒤 다시 검사합니다. 맨 아래에 제출할 zip 파일의 위치가 나옵니다.</p>
+        <figure>
+          <img src="images/result.png" alt="검사 결과 화면. 통과 6 / 전체 8. A2와 A3가 실패했고 가격 비교를 >= 와 <= 로 하라는 안내가 보임" width="728" height="831">
+          <figcaption>결과 예시. 가격을 <code>&gt;</code>, <code>&lt;</code> 로 비교해서 A2·A3가 실패한 경우입니다. 이유에 나온 대로 <code>&gt;=</code>, <code>&lt;=</code> 로 고치면 통과합니다.</figcaption>
+        </figure>
+      </div></li>
     </ol>
   </section>
 

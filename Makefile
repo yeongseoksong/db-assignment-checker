@@ -33,10 +33,10 @@ dist:
 	@# Apple Silicon 과 Intel 용을 유니버설 바이너리 하나로 합친다 (학생이 CPU 를 고를 필요 없음).
 	lipo -create -output build/checker-macos build/checker-darwin-arm64 build/checker-darwin-amd64
 	@# 모두 zip 으로 묶는다. macOS·Linux 는 실행 권한을 보존하려고, Windows 는 LMS·메일이 .exe 를 막는 경우가 있어서다.
-	@# 학생 안내(docs/guide.html)도 함께 넣는다. 한글 파일명은 Windows 에서 깨지므로 GUIDE.html 로 넣는다.
-	cp docs/guide.html build/GUIDE.html
+	@# 학생 안내(docs/guide.html)와 그 캡처(docs/images)도 함께 넣는다. 한글 파일명은 Windows 에서 깨지므로 GUIDE.html 로 넣는다.
+	cp docs/guide.html build/GUIDE.html && cp -R docs/images build/images
 	cd build && for f in checker-macos checker-linux-amd64 checker-windows-amd64.exe; do \
-		zip -q "../dist/$${f%.exe}.zip.tmp" "$$f" GUIDE.html && mv "../dist/$${f%.exe}.zip.tmp" "../dist/$${f%.exe}.zip" || exit 1; \
+		zip -q -r "../dist/$${f%.exe}.zip.tmp" "$$f" GUIDE.html images && mv "../dist/$${f%.exe}.zip.tmp" "../dist/$${f%.exe}.zip" || exit 1; \
 	done
 	rm -rf build
 	@ls -l dist/*.zip
