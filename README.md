@@ -35,7 +35,7 @@ make dist    # dist/ 에 배포 파일 생성
 
 모두 zip 으로 묶습니다. macOS·Linux 는 실행 권한이 유지되고, Windows 는 `.exe` 업로드를 막는 LMS 에도 올릴 수 있습니다.
 Windows 에서 zip 을 풀지 않고 안의 `.exe` 를 바로 실행하면 채점기가 압축을 먼저 풀라고 안내하고 멈춥니다.
-각 zip 에는 학생 사용 안내 `GUIDE.html` 이 함께 들어갑니다. 원본은 `docs/guide.html` 이고, 고친 뒤 `make dist` 를 다시 하면 반영됩니다.
+각 zip 에는 학생 사용 안내 `GUIDE.md` 와 캡처(`images/`)가 함께 들어갑니다. 원본은 `docs/guide.md` 이고, 고친 뒤 `make dist` 를 다시 하면 반영됩니다.
 
 제출받은 zip 을 한 폴더에 모아 복호화합니다.
 
