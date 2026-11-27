@@ -93,132 +93,59 @@
 <body>
 <main>
   <header>
-    <h1>DB 과제 채점기 사용 안내</h1>
-    <p class="lead">스크레이핑 과제(<code>GET /books</code>)를 제출하기 전에 채점기로 직접 검사하고, 채점기가 만든 zip 파일을 제출합니다. 처음 실행할 때 보안 경고가 뜰 수 있으니 마감 전에 미리 한 번 실행해 보세요.</p>
-    <p class="deadline">제출 마감 <b>12월 4일 23:55</b></p>
+    <h1>DB 과제 채점기 안내</h1>
+    <p class="lead">과제를 제출하기 전에 채점기로 내 서버를 검사하고, 채점기가 만든 결과 파일을 함께 제출합니다. 처음 실행할 때 보안 경고가 뜨니 마감 전에 미리 한 번 실행해 보세요.</p>
+    <p class="deadline">제출 마감 <b>12월 4일 23:55</b> · 늦은 제출은 받지 않습니다</p>
   </header>
 
   <section>
-    <h2>준비물</h2>
-    <ul class="plain">
-      <li>교수님이 올린 채점기 파일 (다른 곳에서 받은 파일은 쓰지 마세요)
-        <ul class="plain">
-          <li>macOS: <code>checker-macos.zip</code></li>
-          <li>Windows: <code>checker-windows-amd64.zip</code></li>
-          <li>Linux: <code>checker-linux-amd64.zip</code></li>
-        </ul>
-      </li>
-      <li>내 프로젝트의 <code>application.properties</code> 값: <code>spring.datasource.url</code>, <code>username</code>, <code>password</code></li>
-      <li>실행 중인 내 Spring Boot 서버</li>
-    </ul>
-  </section>
-
-  <section>
-    <h2>실행 순서</h2>
+    <h2>제출할 것</h2>
     <ol class="steps">
       <li><div>
-        <h3>Spring Boot 서버를 먼저 실행합니다</h3>
-        <p>IDE에서 실행하고, 브라우저로 <code>http://localhost:8080/books?category=Travel&amp;minPrice=10&amp;maxPrice=30</code> 이 열리는지 확인하세요.</p>
+        <h3>프로젝트 zip</h3>
+        <p>과제 명세대로 빌드를 클린한 Maven 프로젝트와 README.</p>
       </div></li>
       <li><div>
-        <h3>채점기를 실행합니다</h3>
-        <p>받은 zip을 먼저 풀고, 풀린 채점기 파일을 더블클릭합니다. macOS는 zip을 더블클릭하면 풀리고, Windows는 zip을 오른쪽 클릭 → <span class="key">압축 풀기</span>를 합니다. zip 안에서 바로 실행하면 제출 파일이 사라지므로 채점기가 멈추고 압축을 풀라고 안내합니다. 경고창이 뜨면 아래 <a href="#warning">경고창이 뜰 때</a>를 따라 한 번만 허용하세요.</p>
-      </div></li>
-      <li><div>
-        <h3>브라우저에 열린 입력 창에 값을 넣습니다</h3>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>칸</th><th>넣을 값</th></tr></thead>
-            <tbody>
-              <tr><td>학번</td><td>영문과 숫자만</td></tr>
-              <tr><td>로컬 포트</td><td>Spring 서버 포트. 보통 <code>8080</code></td></tr>
-              <tr><td>Neon 주소</td><td><code>spring.datasource.url</code> 값을 그대로 붙여넣기. 예) <code>jdbc:postgresql://ep-xxx.neon.tech/neondb?sslmode=require</code></td></tr>
-              <tr><td>DB 사용자명</td><td><code>spring.datasource.username</code></td></tr>
-              <tr><td>DB 비밀번호</td><td><code>spring.datasource.password</code></td></tr>
-              <tr><td>스키마</td><td>테이블을 <code>public</code>이 아닌 스키마에 만들었을 때만 입력. 대소문자까지 똑같이</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div></li>
-      <li><div>
-        <h3><span class="key">검사 시작</span>을 누르고 결과를 확인합니다</h3>
-        <p>검사 8개의 통과(✔)·실패(✘)와 이유가 나옵니다. A2·A3는 무작위 질의 10건을 보내 모두 맞아야 통과이고, 실행할 때마다 질의가 바뀝니다. 실패한 항목은 고친 뒤 다시 검사할 수 있습니다.</p>
-      </div></li>
-      <li><div>
-        <h3>마지막 결과의 zip 파일을 제출합니다</h3>
-        <p>채점기 파일 옆 <code>results</code> 폴더에 <code>submit_학번_날짜-시각.zip</code>이 생깁니다. 정확한 경로는 결과 화면 아래에 나옵니다. 여러 번 검사했다면 <strong>가장 최근 파일</strong>을 내세요. zip은 풀거나 수정하지 말고 그대로 제출합니다.</p>
+        <h3>채점 결과 zip</h3>
+        <p>채점기 옆 <code>results</code> 폴더의 <code>submit_학번_날짜-시각.zip</code>. 여러 번 검사했다면 <strong>가장 최근 파일</strong> 하나를 풀지 말고 그대로 냅니다.</p>
       </div></li>
     </ol>
   </section>
 
-  <section id="warning">
-    <h2>경고창이 뜰 때</h2>
-    <p class="muted">채점기는 앱스토어나 인증된 개발사를 거치지 않은 프로그램이라 처음 한 번은 경고가 뜹니다. 교수님이 올린 파일이라면 아래처럼 허용하면 됩니다.</p>
-    <div class="os">
-      <article>
-        <h3>macOS</h3>
-        <ol>
-          <li>"악성 코드가 없음을 확인할 수 없습니다" 창에서 <span class="key">완료</span> (휴지통으로 이동 아님)</li>
-          <li>시스템 설정 → 개인정보 보호 및 보안</li>
-          <li>아래쪽 "checker-macos이(가) 차단되었습니다" 옆 <span class="key">그래도 열기</span></li>
-          <li>Mac 암호 입력 → 다시 <span class="key">그래도 열기</span></li>
-        </ol>
-        <p class="note">zip은 Finder에서 더블클릭으로 푸세요. 다른 압축 프로그램으로 풀면 실행이 안 될 수 있습니다.</p>
-      </article>
-      <article>
-        <h3>Windows</h3>
-        <ol>
-          <li>zip을 오른쪽 클릭 → <span class="key">압축 풀기</span> 후 풀린 폴더의 <code>.exe</code> 실행</li>
-          <li>"Windows의 PC 보호" 창에서 <span class="key">추가 정보</span> → <span class="key">실행</span></li>
-          <li>브라우저가 다운로드를 막으면 다운로드 목록에서 <span class="key">유지</span></li>
-          <li>파일이 사라졌다면 Windows 보안 → 바이러스 및 위협 방지 → 보호 기록 → 해당 항목 <span class="key">디바이스에서 허용</span> 후 다시 받기</li>
-        </ol>
-        <p class="note">V3, 알약 등 다른 백신을 쓰면 그 백신의 예외 목록에 추가하세요.</p>
-      </article>
-      <article>
-        <h3>Linux</h3>
-        <ol>
-          <li>zip을 풀고 터미널에서 실행</li>
-        </ol>
-        <pre><code>./checker-linux-amd64</code></pre>
-      </article>
-    </div>
+  <section>
+    <h2>실행 방법</h2>
+    <ol class="steps">
+      <li><div><p>Spring Boot 서버를 먼저 실행합니다.</p></div></li>
+      <li><div><p>받은 zip을 풀고 채점기를 더블클릭하면 브라우저에 입력 창이 열립니다.</p></div></li>
+      <li><div><p>학번, 포트(보통 <code>8080</code>), <code>application.properties</code>의 DB 주소·사용자명·비밀번호를 넣고 <span class="key">검사 시작</span>을 누릅니다.</p></div></li>
+      <li><div><p>✘가 있으면 이유를 보고 고친 뒤 다시 검사합니다.</p></div></li>
+    </ol>
   </section>
 
   <section>
-    <h2>자주 나오는 실패 메시지</h2>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>항목</th><th>메시지</th><th>확인할 것</th></tr></thead>
-        <tbody>
-          <tr><td>API 전체</td><td class="msg">서버(http://localhost:8080)에 연결할 수 없습니다</td><td>Spring 서버가 켜져 있는지, 포트 번호가 맞는지</td></tr>
-          <tr><td>D1</td><td class="msg">인증에 실패했습니다</td><td>DB 사용자명·비밀번호를 Neon 대시보드에서 다시 복사</td></tr>
-          <tr><td>D1</td><td class="msg">호스트를 찾을 수 없습니다</td><td>Neon 주소의 <code>ep-xxx.neon.tech</code> 오타</td></tr>
-          <tr><td>D1</td><td class="msg">연결 시간(15초)이 초과되었습니다</td><td>인터넷 연결, Neon 프로젝트가 일시 정지 상태인지</td></tr>
-          <tr><td>D1</td><td class="msg">스키마 "public" 에 테이블이 없습니다</td><td>테이블을 만든 스키마 이름을 스키마 칸에 입력</td></tr>
-          <tr><td>D2·D3</td><td class="msg">책 N/1000권과 일치 (95% 이상 필요)</td><td>모든 카테고리, 모든 페이지를 빠짐없이 크롤링했는지</td></tr>
-          <tr><td>A1·A2</td><td class="msg">누락 N권 / 불필요 N개</td><td>카테고리 비교, 가격 범위 조건, 다음 페이지 크롤링</td></tr>
-          <tr><td>A1·A2</td><td class="msg">가격이 없거나 다름</td><td>응답 JSON에 가격이 들어 있는지, 파싱한 가격이 사이트와 같은지</td></tr>
-          <tr><td>A3</td><td class="msg">minPrice=maxPrice 일 때 그 가격의 책이 빠졌습니다</td><td>가격 비교를 <code>&gt;=</code>, <code>&lt;=</code>로 했는지</td></tr>
-          <tr><td>E1·E2</td><td class="msg">기대 "…", 받음 "…"</td><td>오류 응답의 <code>message</code> 문구를 과제 명세와 한 글자도 다르지 않게</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="muted">응답 JSON의 필드 이름(<code>title</code>, <code>name</code> 등)은 자유입니다. 가격은 숫자(<code>36.94</code>)나 문자열(<code>"£36.94"</code>) 모두 됩니다.</p>
+    <h2>macOS 유의사항</h2>
+    <ul class="plain">
+      <li><strong>zip은 Finder에서 더블클릭으로 풉니다.</strong> 다른 압축 프로그램이나 Windows에서 푼 뒤 옮기면 실행 권한이 빠져 열리지 않을 수 있습니다.</li>
+      <li><strong>처음 실행하면 "확인할 수 없습니다" 경고가 뜹니다.</strong> <span class="key">완료</span>를 누르고(휴지통 아님) 시스템 설정 → 개인정보 보호 및 보안 → 아래쪽 "checker-macos이(가) 차단되었습니다" 옆 <span class="key">그래도 열기</span> → Mac 암호 → 다시 <span class="key">그래도 열기</span>. 한 번만 하면 됩니다.</li>
+      <li><strong>더블클릭하면 터미널 창이 같이 열립니다.</strong> 채점기 본체이므로 검사가 끝날 때까지 닫지 마세요.</li>
+      <li><strong>결과 파일은 채점기 옆 <code>results</code> 폴더에 생깁니다.</strong> 정확한 위치는 결과 화면 아래에 나옵니다.</li>
+      <li>M1 이후 Mac과 Intel Mac 모두 같은 파일을 씁니다.</li>
+    </ul>
   </section>
 
   <section>
-    <h2>알아 둘 것</h2>
+    <h2>Windows · Linux</h2>
+    <ul class="plain">
+      <li><strong>Windows</strong>: zip을 오른쪽 클릭 → <span class="key">압축 풀기</span> 후 실행합니다. zip 안에서 바로 실행하면 채점기가 멈추고 압축을 풀라고 안내합니다. "Windows의 PC 보호" 창이 뜨면 <span class="key">추가 정보</span> → <span class="key">실행</span>.</li>
+      <li><strong>Linux</strong>: 압축을 풀고 터미널에서 <code>./checker-linux-amd64</code>.</li>
+    </ul>
+  </section>
+
+  <section>
     <div class="callout">
       <p><strong>채점기가 기록하는 정보</strong></p>
-      <p>검사 결과와 요청 기록 외에 컴퓨터 이름과 네트워크 장치 식별 번호(MAC 주소)를 함께 기록합니다. 다른 사람의 컴퓨터로 대신 검사한 제출을 가려내기 위해서입니다. 모두 암호화되어 교수님만 열 수 있습니다.</p>
+      <p>검사 결과와 함께 컴퓨터 이름과 MAC 주소를 암호화해 기록합니다. DB 비밀번호는 저장하지 않고, DB는 읽기만 합니다.</p>
     </div>
-    <ul class="plain">
-      <li>DB 비밀번호는 화면, 결과 파일, 로그 어디에도 저장되지 않습니다.</li>
-      <li>제출 zip은 암호화되어 있어 열어 볼 수 없습니다. 결과는 실행 화면에서 확인하세요.</li>
-      <li>다른 사람의 zip을 이름만 바꿔 내면 안의 학번이 달라 바로 드러납니다.</li>
-      <li>채점기는 내 DB를 읽기만 하고 바꾸지 않습니다.</li>
-    </ul>
   </section>
 </main>
 </body>
