@@ -53,7 +53,16 @@ go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 1. 스프링 서버를 먼저 실행합니다.
 2. 받은 zip 을 풀고(Windows 는 오른쪽 클릭 → [압축 풀기]), 풀린 채점기를 더블클릭하면 브라우저에 입력 창이 열립니다.
 3. 학번, Neon 주소, DB 사용자명·비밀번호, 스키마(선택), 포트를 넣고 [검사 시작]을 누릅니다.
-4. `results/submit_<학번>_<시각>.zip` 을 제출합니다.
+
+   ![채점기 입력 창 예시](docs/images/form.png)
+
+4. ✘ 가 있으면 이유를 보고 고친 뒤 다시 검사합니다.
+
+   ![검사 결과 화면 예시. A2·A3 가 실패하고 가격 비교를 >= 와 <= 로 하라는 안내가 보임](docs/images/result.png)
+
+5. `results/submit_<학번>_<시각>.zip` 을 제출합니다.
+
+자세한 학생용 안내는 [`docs/guide.md`](docs/guide.md) 에 있습니다 (zip 안의 `GUIDE.md` 와 같은 내용).
 
 처음 실행할 때 경고창이 뜨면 한 번만 허용합니다.
 
