@@ -1,0 +1,56 @@
+# 태그(v1.0.0 등)를 push 하면 테스트 → 빌드 → GitHub Release 에 학생 배포용 zip 3개를 올린다.
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# 필요한 저장소 Secrets (Settings → Secrets and variables → Actions):
+#   CHECKER_PUBLIC_KEY   keys/public.key 내용 (한 줄)
+#   CHECKER_HMAC_SECRET  keys/hmac.secret 내용 (한 줄)
+# 개인키(keys/private.key)는 절대 올리지 않는다. 복호화는 교수자 PC 에서만 한다.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # 릴리스를 만들고 파일을 올리는 데 필요
+
+jobs:
+  release:
+    # Mac 유니버설 바이너리를 만드는 lipo 가 macOS 에만 있다. 다른 OS 용은 여기서 크로스 컴파일한다.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Makefile 이 git describe 로 태그 이름을 버전으로 쓴다
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: 테스트
+        run: make test
+
+      - name: 키 준비 (공개키와 HMAC 키만)
+        env:
+          PUBLIC_KEY: ${{ secrets.CHECKER_PUBLIC_KEY }}
+          HMAC_SECRET: ${{ secrets.CHECKER_HMAC_SECRET }}
+        run: |
+          if [ -z "$PUBLIC_KEY" ] || [ -z "$HMAC_SECRET" ]; then
+            echo "::error::저장소 Secrets 에 CHECKER_PUBLIC_KEY 와 CHECKER_HMAC_SECRET 를 등록하세요"
+            exit 1
+          fi
+          mkdir -p keys
+          printf '%s\n' "$PUBLIC_KEY" > keys/public.key
+          printf '%s\n' "$HMAC_SECRET" > keys/hmac.secret
+
+      - name: 빌드
+        run: make dist
+
+      - name: 릴리스 만들기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip \
+            --title "채점기 $GITHUB_REF_NAME" \
+            --generate-notes
