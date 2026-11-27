@@ -2,8 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"crypto/ecdh"
-	"crypto/rand"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -79,7 +77,7 @@ func writeZip(t *testing.T, entries map[string][]byte) string {
 }
 
 func TestReadSubmission(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+	priv, err := report.GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,8 +86,8 @@ func TestReadSubmission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sealedResult, _ := report.Seal(priv.PublicKey(), csvBytes)
-	sealedLog, _ := report.Seal(priv.PublicKey(), []byte("로그 내용"))
+	sealedResult, _ := report.Seal(&priv.PublicKey, csvBytes)
+	sealedLog, _ := report.Seal(&priv.PublicKey, []byte("로그 내용"))
 
 	t.Run("정상 제출", func(t *testing.T) {
 		path := writeZip(t, map[string][]byte{"result_20231234_x.enc": sealedResult, "checker_20231234_x.log.enc": sealedLog})

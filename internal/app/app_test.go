@@ -4,8 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"crypto/ecdh"
-	"crypto/rand"
 	"io"
 	"net/http/httptest"
 	"strings"
@@ -54,9 +52,9 @@ func TestValidate(t *testing.T) {
 
 func TestRunWritesEncryptedResultWithoutLeakingPassword(t *testing.T) {
 	const password = "Sup3rSecretPw"
-	priv, _ := ecdh.X25519().GenerateKey(rand.Reader)
+	priv, _ := report.GenerateKey()
 	secret := []byte("hmac-secret")
-	cfg := Config{PublicKey: priv.PublicKey(), HMACSecret: secret, Version: "test", OutDir: t.TempDir()}
+	cfg := Config{PublicKey: &priv.PublicKey, HMACSecret: secret, Version: "test", OutDir: t.TempDir()}
 	ds, _ := dataset.Load()
 	srv := httptest.NewServer(fakestudent.Handler(ds, fakestudent.Options{}))
 	defer srv.Close()

@@ -7,7 +7,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"crypto/ecdh"
 	"encoding/base64"
 	"errors"
 	"flag"
@@ -23,6 +22,7 @@ import (
 
 	"dbchecker/internal/app"
 	"dbchecker/internal/checks"
+	"dbchecker/internal/report"
 	"dbchecker/internal/webui"
 )
 
@@ -123,7 +123,7 @@ func loadConfig(outDir string) (app.Config, error) {
 	if err != nil {
 		return cfg, fmt.Errorf("내장 공개키가 손상되었습니다. 교수자에게 문의하세요: %w", err)
 	}
-	cfg.PublicKey, err = ecdh.X25519().NewPublicKey(pubBytes)
+	cfg.PublicKey, err = report.ParsePublicKey(pubBytes)
 	if err != nil {
 		return cfg, fmt.Errorf("내장 공개키가 올바르지 않습니다. 교수자에게 문의하세요: %w", err)
 	}

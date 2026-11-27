@@ -2,15 +2,14 @@ package report
 
 import (
 	"bytes"
-	"crypto/ecdh"
-	"crypto/rand"
+	"crypto/rsa"
 	"strings"
 	"testing"
 )
 
-func newKeys(t *testing.T) *ecdh.PrivateKey {
+func newKeys(t *testing.T) *rsa.PrivateKey {
 	t.Helper()
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+	priv, err := GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -20,7 +19,7 @@ func newKeys(t *testing.T) *ecdh.PrivateKey {
 func TestSealOpenRoundTrip(t *testing.T) {
 	priv := newKeys(t)
 	plain := []byte("student_id,check_id\n20231234,S1\n한글 데이터")
-	sealed, err := Seal(priv.PublicKey(), plain)
+	sealed, err := Seal(&priv.PublicKey, plain)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +37,7 @@ func TestSealOpenRoundTrip(t *testing.T) {
 
 func TestOpenFailsOnTamperingAnywhere(t *testing.T) {
 	priv := newKeys(t)
-	sealed, _ := Seal(priv.PublicKey(), []byte("결과"))
+	sealed, _ := Seal(&priv.PublicKey, []byte("결과"))
 	for i := range sealed {
 		tampered := append([]byte{}, sealed...)
 		tampered[i] ^= 0x01
@@ -50,7 +49,7 @@ func TestOpenFailsOnTamperingAnywhere(t *testing.T) {
 
 func TestOpenFailsWithWrongKeyOrTruncation(t *testing.T) {
 	priv := newKeys(t)
-	sealed, _ := Seal(priv.PublicKey(), []byte("결과"))
+	sealed, _ := Seal(&priv.PublicKey, []byte("결과"))
 	if _, err := Open(newKeys(t), sealed); err == nil {
 		t.Fatal("다른 개인키로 열렸습니다")
 	}

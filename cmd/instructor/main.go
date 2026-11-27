@@ -6,8 +6,8 @@ package main
 
 import (
 	"archive/zip"
-	"crypto/ecdh"
 	"crypto/rand"
+	"crypto/rsa"
 	"encoding/base64"
 	"encoding/csv"
 	"errors"
@@ -59,7 +59,15 @@ func keygen(args []string) error {
 	fs.Parse(args)
 
 	files := map[string]string{} // 파일 경로 -> 내용
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+	priv, err := report.GenerateKey()
+	if err != nil {
+		return err
+	}
+	privDER, err := report.MarshalPrivateKey(priv)
+	if err != nil {
+		return err
+	}
+	pubDER, err := report.MarshalPublicKey(&priv.PublicKey)
 	if err != nil {
 		return err
 	}
@@ -68,8 +76,8 @@ func keygen(args []string) error {
 		return err
 	}
 	enc := base64.StdEncoding.EncodeToString
-	files[filepath.Join(*dir, "private.key")] = enc(priv.Bytes()) + "\n"
-	files[filepath.Join(*dir, "public.key")] = enc(priv.PublicKey().Bytes()) + "\n"
+	files[filepath.Join(*dir, "private.key")] = enc(privDER) + "\n" // RSA 2048 개인키, PKCS#8 DER 을 base64 한 줄로
+	files[filepath.Join(*dir, "public.key")] = enc(pubDER) + "\n"   // RSA 공개키, PKIX DER 을 base64 한 줄로
 	files[filepath.Join(*dir, "hmac.secret")] = enc(secret) + "\n"
 
 	// 하나라도 이미 있으면 아무것도 쓰지 않는다 (기존 키를 덮어쓰면 이미 받은 .enc 를 못 연다).
@@ -123,9 +131,9 @@ func decrypt(args []string) error {
 	if err != nil {
 		return err
 	}
-	priv, err := ecdh.X25519().NewPrivateKey(privBytes)
+	priv, err := report.ParsePrivateKey(privBytes)
 	if err != nil {
-		return fmt.Errorf("개인키가 올바르지 않습니다: %w", err)
+		return fmt.Errorf("개인키가 올바른 RSA 개인키가 아닙니다 (이전 형식의 키라면 make keys 로 새로 만드세요): %w", err)
 	}
 	secret, err := readKeyFile(*hmacPath)
 	if err != nil {
@@ -255,7 +263,7 @@ type submission struct {
 }
 
 // readSubmission 은 제출 zip 에서 결과(.enc)와 로그(.log.enc)를 꺼내 복호화하고 결과의 HMAC 을 검증한다.
-func readSubmission(path string, priv *ecdh.PrivateKey, secret []byte) submission {
+func readSubmission(path string, priv *rsa.PrivateKey, secret []byte) submission {
 	zr, err := zip.OpenReader(path)
 	if err != nil {
 		return submission{Integrity: "INVALID: zip 을 열 수 없음 (" + err.Error() + ")"}

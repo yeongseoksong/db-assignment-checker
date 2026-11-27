@@ -6,7 +6,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"crypto/ecdh"
+	"crypto/rsa"
 	"errors"
 	"fmt"
 	"io"
@@ -169,7 +169,7 @@ func NormalizeDBAddress(address, user, password string) (string, error) {
 
 // Config 는 빌드 때 주입된 값과 출력 위치다.
 type Config struct {
-	PublicKey  *ecdh.PublicKey
+	PublicKey  *rsa.PublicKey
 	HMACSecret []byte
 	Version    string
 	OutDir     string
