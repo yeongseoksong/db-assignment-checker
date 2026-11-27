@@ -1,10 +1,10 @@
-# 교수자용 작업 모음. 사용법은 README.md 를 보세요.
+# 교수자용 작업 모음. 사용법은 docs/instructor.md 를 보세요.
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 # test 의 <( ) 비교에 bash 가 필요하다
 SHELL := /bin/bash
 
-.PHONY: keys snapshot test lint fuzz dist clean
+.PHONY: keys snapshot test readme lint fuzz dist clean
 
 keys:
 	go run ./cmd/instructor keygen -dir keys
@@ -20,6 +20,13 @@ test:
 	@diff -B <(sed -n '/^## OS별 대응/,/^## [^O]/p' docs/guide.md | sed '/^## [^O]/d') \
 	      <(sed -n '/^## OS별 대응/,/^## [^O]/p' docs/notice.md | sed '/^## [^O]/d') \
 	  || (echo "docs/guide.md 와 docs/notice.md 의 'OS별 대응' 부분이 다릅니다. 둘을 똑같이 맞추세요" && exit 1)
+	@# README.md 는 docs/guide.md 와 같아야 한다 (이미지 경로만 docs/images/).
+	@sed 's#](images/#](docs/images/#g' docs/guide.md | diff - README.md \
+	  || (echo "README.md 가 docs/guide.md 와 다릅니다. make readme 로 다시 만드세요" && exit 1)
+
+# README.md 를 docs/guide.md 로부터 다시 만든다 (저장소 첫 화면 기준으로 이미지 경로만 바꿈)
+readme:
+	sed 's#](images/#](docs/images/#g' docs/guide.md > README.md
 
 # keys/ 의 공개키와 HMAC 비밀키를 바이너리에 주입해 플랫폼별로 크로스컴파일한다.
 # 중간 파일은 build/ 에서 만들고 dist/ 에는 완성된 zip 만 쓴다.
