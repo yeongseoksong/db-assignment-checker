@@ -110,8 +110,8 @@ func TestPanickingCheckIsRecordedNotFatal(t *testing.T) {
 	saved := All
 	defer func() { All = saved }()
 	All = []Check{
-		{"X1", GroupAPI, "패닉 나는 검사", func(ctx context.Context, env *Env) Result { panic("판정 버그") }},
-		{"X2", GroupAPI, "다음 검사", func(ctx context.Context, env *Env) Result { return Result{Passed: true} }},
+		{"X1", GroupAPI, "패닉 나는 검사", 1, func(ctx context.Context, env *Env) Result { panic("판정 버그") }},
+		{"X2", GroupAPI, "다음 검사", 1, func(ctx context.Context, env *Env) Result { return Result{Passed: true} }},
 	}
 	env := newEnv(t, "http://127.0.0.1:1")
 	env.BaseURL = ""

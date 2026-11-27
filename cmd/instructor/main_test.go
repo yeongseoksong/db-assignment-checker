@@ -126,6 +126,31 @@ func TestFillRoundsFromLog(t *testing.T) {
 	}
 }
 
+func TestScoreRecords(t *testing.T) {
+	row := func(checkID, passed, roundsPassed, roundsTotal string) []string {
+		rec := make([]string, len(report.Header))
+		rec[slices.Index(report.Header, "check_id")] = checkID
+		rec[slices.Index(report.Header, "passed")] = passed
+		rec[slices.Index(report.Header, "rounds_passed")] = roundsPassed
+		rec[slices.Index(report.Header, "rounds_total")] = roundsTotal
+		return rec
+	}
+	records := [][]string{
+		row("D1", "false", "", ""),
+		row("A1", "true", "", ""),
+		row("A2", "false", "7", "10"), // 부분 점수
+		row("A3", "true", "10", "10"),
+		row("E1", "false", "", ""),
+		row("S9", "true", "", ""), // 검사 표에 없는 ID
+		row("TOTAL", "false", "", ""),
+	}
+	got := scoreRecords(records)
+	want := [][2]string{{"0", "12.5"}, {"12.5", "12.5"}, {"8.75", "12.5"}, {"12.5", "12.5"}, {"0", "12.5"}, {"", ""}, {"33.75", "100"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("점수가 다릅니다\n받음 %v\n기대 %v", got, want)
+	}
+}
+
 func TestReadSubmission(t *testing.T) {
 	priv, err := report.GenerateKey()
 	if err != nil {

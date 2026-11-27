@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"dbchecker/internal/checks"
 	"dbchecker/internal/report"
 )
 
@@ -150,7 +152,7 @@ func decrypt(args []string) error {
 		return fmt.Errorf("%s 에 쓸 수 없습니다: %w", *outPath, err)
 	}
 	w := csv.NewWriter(out)
-	_ = w.Write(append(append([]string{}, report.Header...), "integrity", "source_file")) // 쓰기 오류는 Flush 뒤 w.Error() 로 한꺼번에 확인한다
+	_ = w.Write(append(append([]string{}, report.Header...), "score", "max_score", "integrity", "source_file")) // 쓰기 오류는 Flush 뒤 w.Error() 로 한꺼번에 확인한다
 
 	logDir := filepath.Join(filepath.Dir(*outPath), "logs")
 	invalid, logs := 0, 0
@@ -176,8 +178,12 @@ func decrypt(args []string) error {
 			}
 			records = [][]string{row}
 		}
-		for _, rec := range records {
-			_ = w.Write(append(append([]string{}, rec...), sub.Integrity, base)) // 위와 같음
+		scores := make([][2]string, len(records)) // 서명이 맞지 않는 제출은 점수를 비워 둔다
+		if sub.Integrity == "OK" {
+			scores = scoreRecords(records)
+		}
+		for i, rec := range records {
+			_ = w.Write(append(append([]string{}, rec...), scores[i][0], scores[i][1], sub.Integrity, base)) // 위와 같음
 		}
 		if sub.Log != nil {
 			if err := writeLog(logDir, sub.LogName, sub.Log); err != nil {
@@ -273,6 +279,56 @@ func padRecords(records [][]string) [][]string {
 		records[i] = rec
 	}
 	return records
+}
+
+// scoreRecords 는 한 제출의 레코드마다 [점수, 배점] 을 계산한다. 배점은 internal/checks 의 검사 표가 기준이다.
+// 맞은 건수(rounds)가 있으면 배점 × 맞은 건수 / 전체 건수, 없으면 통과 시 배점, 실패 시 0 이다.
+// TOTAL 행은 다른 행 점수의 합과 전체 배점이다. 검사 표에 없는 ID 는 빈 칸이다.
+func scoreRecords(records [][]string) [][2]string {
+	points := map[string]float64{}
+	maxTotal := 0.0
+	for _, c := range checks.All {
+		points[c.ID] = c.Points
+		maxTotal += c.Points
+	}
+	idCol := slices.Index(report.Header, "check_id")
+	passedCol := slices.Index(report.Header, "passed")
+	roundsPassedCol := slices.Index(report.Header, "rounds_passed")
+	roundsTotalCol := slices.Index(report.Header, "rounds_total")
+
+	out := make([][2]string, len(records))
+	total := 0.0
+	totalRow := -1
+	for i, rec := range records {
+		checkID := rec[idCol]
+		if checkID == "TOTAL" {
+			totalRow = i
+			continue
+		}
+		checkMax, known := points[checkID]
+		if !known {
+			continue
+		}
+		score := 0.0
+		roundsPassed, err1 := strconv.Atoi(rec[roundsPassedCol])
+		roundsTotal, err2 := strconv.Atoi(rec[roundsTotalCol])
+		if err1 == nil && err2 == nil && roundsTotal > 0 {
+			score = checkMax * float64(roundsPassed) / float64(roundsTotal)
+		} else if rec[passedCol] == "true" {
+			score = checkMax
+		}
+		total += score
+		out[i] = [2]string{formatScore(score), formatScore(checkMax)}
+	}
+	if totalRow >= 0 {
+		out[totalRow] = [2]string{formatScore(total), formatScore(maxTotal)}
+	}
+	return out
+}
+
+// formatScore 는 점수를 소수 둘째 자리까지 반올림하고 뒤의 0 은 뺀다 (8.75, 12.5, 100).
+func formatScore(v float64) string {
+	return strconv.FormatFloat(math.Round(v*100)/100, 'f', -1, 64)
 }
 
 // oldRandomRounds 는 rounds 열이 없던 v1.0.0 채점기의 무작위 반복 횟수다.

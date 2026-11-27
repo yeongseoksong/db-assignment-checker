@@ -48,17 +48,20 @@ type Rounds struct {
 // Check 는 채점 항목 하나다.
 type Check struct {
 	ID, Group, Title string
+	Points           float64 // 배점. 무작위 반복 검사(A2, A3)는 맞은 건수 비율만큼 받는다
 	Run              func(ctx context.Context, env *Env) Result
 }
 
 // All 은 채점 항목 표다. 검사를 추가하려면 한 줄을 더한다.
+// 배점(Points)은 교수자 도구(decrypt)가 점수를 계산할 때만 쓴다. 학생 화면에는 나오지 않는다.
+// 배점을 바꾸면 decrypt 를 다시 돌리기만 하면 된다 (채점기를 다시 배포할 필요 없음).
 var All = []Check{
-	{"D1", GroupDB, "Neon DB 연결", checkD1},
-	{"D2", GroupDB, "DB 에 책 데이터 존재", checkD2},
-	{"D3", GroupDB, "DB 에 카테고리 50개 존재", checkD3},
-	{"A1", GroupAPI, "고정 케이스 Travel 10~30", checkA1},
-	{"A2", GroupAPI, "무작위 카테고리와 가격 범위 (10건)", checkA2},
-	{"A3", GroupAPI, "가격 경계값 포함, 이상/이하 (10건)", checkA3},
-	{"E1", GroupErrors, "존재하지 않는 카테고리 메시지", checkE1},
-	{"E2", GroupErrors, "minPrice > maxPrice 메시지", checkE2},
+	{"D1", GroupDB, "Neon DB 연결", 12.5, checkD1},
+	{"D2", GroupDB, "DB 에 책 데이터 존재", 12.5, checkD2},
+	{"D3", GroupDB, "DB 에 카테고리 50개 존재", 12.5, checkD3},
+	{"A1", GroupAPI, "고정 케이스 Travel 10~30", 12.5, checkA1},
+	{"A2", GroupAPI, "무작위 카테고리와 가격 범위 (10건)", 12.5, checkA2},
+	{"A3", GroupAPI, "가격 경계값 포함, 이상/이하 (10건)", 12.5, checkA3},
+	{"E1", GroupErrors, "존재하지 않는 카테고리 메시지", 12.5, checkE1},
+	{"E2", GroupErrors, "minPrice > maxPrice 메시지", 12.5, checkE2},
 }
