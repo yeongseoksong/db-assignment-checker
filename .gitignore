@@ -8,3 +8,4 @@ build/
 merged.csv
 logs/
 .DS_Store
+testdata/neon_seed.sql

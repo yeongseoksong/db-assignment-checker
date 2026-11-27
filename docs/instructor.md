@@ -100,6 +100,18 @@ gh secret set CHECKER_HMAC_SECRET < keys/hmac.secret
 
 저장소는 비공개라 학생은 Release 에 접근할 수 없습니다. Release 에서 zip 을 받아 LMS 에 올리세요.
 
+## DB 검사 시험하기 (Neon)
+
+`make seed-sql` 을 실행하면 정답 데이터(책 1000권, 카테고리 50개)를 `checker_test` 스키마에 넣는 SQL 이 `testdata/neon_seed.sql` 로 만들어집니다. 이 파일은 git 에 올리지 않습니다. Neon 콘솔의 SQL Editor 에 붙여넣어 실행하거나 psql 로 실행합니다.
+
+```sh
+make seed-sql
+psql "postgresql://사용자:비밀번호@ep-xxx.neon.tech/neondb?sslmode=require" -f testdata/neon_seed.sql
+```
+
+`checker_test` 스키마만 지우고 다시 만들므로 같은 DB 의 다른 테이블은 건드리지 않습니다. 채점기 입력 창의 스키마 칸에 `checker_test` 를 넣으면 D1~D3 가 모두 통과해야 합니다.
+틀린 경우를 시험하려면 Neon 에서 데이터를 지워 보세요 (예: `DELETE FROM checker_test.book WHERE id > 500;` → D2 실패).
+
 ## 개발 명령
 
 | 명령 | 하는 일 |

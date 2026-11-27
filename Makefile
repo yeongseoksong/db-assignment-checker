@@ -4,7 +4,7 @@ VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 # test 의 <( ) 비교에 bash 가 필요하다
 SHELL := /bin/bash
 
-.PHONY: keys snapshot test readme lint fuzz dist clean
+.PHONY: keys snapshot test readme seed-sql lint fuzz dist clean
 
 keys:
 	go run ./cmd/instructor keygen -dir keys
@@ -14,7 +14,7 @@ snapshot:
 
 test:
 	@# ./... 는 testdata/ 폴더를 건너뛰므로 가짜 서버는 따로 지정한다
-	go vet ./... ./testdata/fakeserver
+	go vet ./... ./testdata/fakeserver ./testdata/seedsql
 	go test ./...
 	@# OS별 대응은 사용법(guide.md)과 공지(notice.md)에 똑같이 쓴다. 한쪽만 고치면 여기서 실패한다.
 	@diff -B <(sed -n '/^## OS별 대응/,/^## [^O]/p' docs/guide.md | sed '/^## [^O]/d') \
@@ -23,6 +23,11 @@ test:
 	@# README.md 는 docs/guide.md 와 같아야 한다 (이미지 경로만 docs/images/).
 	@sed 's#](images/#](docs/images/#g' docs/guide.md | diff - README.md \
 	  || (echo "README.md 가 docs/guide.md 와 다릅니다. make readme 로 다시 만드세요" && exit 1)
+
+# 채점기 DB 검사를 시험할 수집 데이터 SQL 을 만든다 (git 에 올리지 않음). Neon SQL Editor 나 psql 로 실행한다.
+#   psql "postgresql://사용자:비밀번호@ep-xxx.neon.tech/neondb?sslmode=require" -f testdata/neon_seed.sql
+seed-sql:
+	go run ./testdata/seedsql > testdata/neon_seed.sql
 
 # README.md 를 docs/guide.md 로부터 다시 만든다 (저장소 첫 화면 기준으로 이미지 경로만 바꿈)
 readme:
@@ -57,7 +62,7 @@ dist:
 
 # 정적 분석. golangci-lint 가 필요하다 (brew install golangci-lint). 설정은 .golangci.yml
 lint:
-	golangci-lint run ./... ./testdata/fakeserver
+	golangci-lint run ./... ./testdata/fakeserver ./testdata/seedsql
 
 # 퍼징: 신뢰할 수 없는 입력(학생 서버 응답, 제출 파일)을 다루는 코드에 무작위 입력을 넣어 본다.
 # 대상마다 FUZZTIME 동안 돈다. 실패 입력은 해당 패키지의 testdata/fuzz/ 에 저장되어 이후 go test 에서 계속 검사된다.

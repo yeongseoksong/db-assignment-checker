@@ -99,13 +99,19 @@ func TestPasswordNeverLogged(t *testing.T) {
 }
 
 // TestDBIntegration 은 TEST_PG_URL 환경변수가 있을 때만 실제 Postgres 로 D1~D3 를 검사한다.
+// TestDBIntegration 은 실제 DB 로 D1~D3 를 돌린다. TEST_PG_URL 이 있을 때만 돈다.
+// testdata/neon_seed.sql 을 넣은 DB 라면 TEST_PG_SCHEMA=checker_test 로 실행한다.
 func TestDBIntegration(t *testing.T) {
 	connString := os.Getenv("TEST_PG_URL")
 	if connString == "" {
 		t.Skip("TEST_PG_URL 이 없어 건너뜁니다")
 	}
+	schema := os.Getenv("TEST_PG_SCHEMA")
+	if schema == "" {
+		schema = "public"
+	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	env := &Env{Data: loadData(t), Log: log, DBURL: connString}
+	env := &Env{Data: loadData(t), Log: log, DBURL: connString, DBSchema: schema}
 	ctx := context.Background()
 	for _, c := range dbChecks() {
 		res := c.Run(ctx, env)
