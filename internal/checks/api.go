@@ -384,13 +384,15 @@ func repeatRandom(env *Env, checkID string, one func() roundResult) Result {
 		}
 	}
 	prefix := fmt.Sprintf("[시드 %d] ", env.Seed)
+	// 중단해서 못 보낸 건은 틀린 것으로 센다
+	rounds := &Rounds{Passed: tried - failed, Total: randomRounds}
 	if failed == 0 {
-		return Result{Passed: true, Detail: prefix + fmt.Sprintf("무작위 %d건 모두 통과", randomRounds)}
+		return Result{Passed: true, Detail: prefix + fmt.Sprintf("무작위 %d건 모두 통과", randomRounds), Rounds: rounds}
 	}
 	if tried < randomRounds {
-		return Result{Detail: prefix + fmt.Sprintf("서버 응답이 없어 %d건째에서 중단했습니다. %s", tried, firstFailure)}
+		return Result{Detail: prefix + fmt.Sprintf("서버 응답이 없어 %d건째에서 중단했습니다. %s", tried, firstFailure), Rounds: rounds}
 	}
-	return Result{Detail: prefix + fmt.Sprintf("%d건 중 %d건 실패. 첫 실패 %s", randomRounds, failed, firstFailure)}
+	return Result{Detail: prefix + fmt.Sprintf("%d건 중 %d건 실패. 첫 실패 %s", randomRounds, failed, firstFailure), Rounds: rounds}
 }
 
 func checkA1(ctx context.Context, env *Env) Result {

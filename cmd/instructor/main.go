@@ -161,7 +161,7 @@ func decrypt(args []string) error {
 			invalid++
 			fmt.Fprintf(os.Stderr, "경고: %s: %s\n", base, sub.Integrity)
 		}
-		records := sub.Records
+		records := padRecords(sub.Records)
 		merged = append(merged, records...)
 		if records == nil {
 			// 읽을 수 없는 파일도 흔적을 남긴다. 학번은 파일 이름에서 추정한다.
@@ -257,6 +257,18 @@ func isDistinctiveMAC(s string) bool {
 		return false
 	}
 	return hw[3]|hw[4]|hw[5] != 0
+}
+
+// padRecords 는 열이 적은 레코드의 뒤를 빈 칸으로 채운다.
+// v1.0.0 채점기는 rounds_passed, rounds_total 열이 없었다. 새 열은 항상 맨 끝에 붙이므로 앞 열은 그대로 맞는다.
+func padRecords(records [][]string) [][]string {
+	for i, rec := range records {
+		for len(rec) < len(report.Header) {
+			rec = append(rec, "")
+		}
+		records[i] = rec
+	}
+	return records
 }
 
 // submission 은 제출 zip 하나를 풀어 읽은 결과다.

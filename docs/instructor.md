@@ -46,6 +46,7 @@ go run ./cmd/instructor decrypt -out merged.csv submissions/*.zip
 ```
 
 - `merged.csv`: 학생별·검사별 결과. `integrity` 가 `INVALID` 면 변조되었거나 파일이 빠진 제출입니다.
+- `rounds_passed` / `rounds_total`: A2·A3 는 무작위 10건을 모두 맞아야 `passed=true` 지만, 몇 건 맞았는지가 이 두 열에 남아 부분 점수를 줄 수 있습니다. 다른 검사와 v1.0.0 으로 만든 결과는 빈 칸입니다.
 - `logs/`: 학생별 로그.
 - 서로 다른 학번의 MAC 주소가 겹치면 경고가 나옵니다 (같은 기기 의심).
 

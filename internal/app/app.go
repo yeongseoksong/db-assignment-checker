@@ -273,9 +273,14 @@ func buildRows(cfg Config, in Input, now time.Time, res *Result) []report.Row {
 	at := now.Format(time.RFC3339)
 	var rows []report.Row
 	for _, o := range res.Outcomes {
+		var rounds *report.Rounds
+		if o.Result.Rounds != nil {
+			rounds = &report.Rounds{Passed: o.Result.Rounds.Passed, Total: o.Result.Rounds.Total}
+		}
 		rows = append(rows, report.Row{
 			StudentID: in.StudentID, CheckID: o.Check.ID, Group: o.Check.Group, Title: o.Check.Title,
 			Passed: o.Passed(), Detail: o.Result.Detail, CheckedAt: at, Version: cfg.Version, Host: host, MACs: macs,
+			Rounds: rounds,
 		})
 	}
 	rows = append(rows, report.Row{

@@ -37,6 +37,12 @@ type Env struct {
 type Result struct {
 	Passed bool
 	Detail string
+	Rounds *Rounds // 무작위 반복 검사(A2, A3)만 채운다. 나머지 검사는 nil
+}
+
+// Rounds 는 무작위 반복 검사에서 맞은 건수다. 교수자가 부분 점수를 줄 때 쓴다.
+type Rounds struct {
+	Passed, Total int
 }
 
 // Check 는 채점 항목 하나다.

@@ -5,3 +5,6 @@ dist/
 results/
 .idea/
 build/
+merged.csv
+logs/
+.DS_Store

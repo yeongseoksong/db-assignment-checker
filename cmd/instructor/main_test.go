@@ -77,6 +77,16 @@ func writeZip(t testing.TB, entries map[string][]byte) string {
 	return path
 }
 
+// v1.0.0 결과(rounds 열 없음)도 새 열 개수에 맞춰 빈 칸으로 채운다.
+func TestPadRecordsForOldResults(t *testing.T) {
+	old := make([]string, 10)
+	old[0] = "20231234"
+	got := padRecords([][]string{old})
+	if len(got[0]) != len(report.Header) || got[0][0] != "20231234" || got[0][len(report.Header)-1] != "" {
+		t.Fatalf("옛 결과를 새 열에 맞추지 못했습니다: %q", got[0])
+	}
+}
+
 func TestReadSubmission(t *testing.T) {
 	priv, err := report.GenerateKey()
 	if err != nil {

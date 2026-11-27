@@ -16,6 +16,7 @@ import (
 var Header = []string{
 	"student_id", "check_id", "group", "title", "passed",
 	"detail", "checked_at", "checker_version", "hostname", "mac_addresses",
+	"rounds_passed", "rounds_total", // 무작위 반복 검사(A2, A3)에서 맞은 건수. 다른 검사는 빈 칸
 }
 
 const hmacPrefix = "#hmac,"
@@ -25,7 +26,13 @@ type Row struct {
 	StudentID, CheckID, Group, Title string
 	Passed                           bool
 	Detail, CheckedAt, Version, Host string
-	MACs                             string // 실행한 기기의 MAC 주소들 (";" 구분, 정렬됨)
+	MACs                             string  // 실행한 기기의 MAC 주소들 (";" 구분, 정렬됨)
+	Rounds                           *Rounds // 무작위 반복 검사만. nil 이면 빈 칸
+}
+
+// Rounds 는 무작위 반복 검사에서 맞은 건수다.
+type Rounds struct {
+	Passed, Total int
 }
 
 func (r Row) record() []string {
@@ -33,7 +40,22 @@ func (r Row) record() []string {
 		r.StudentID, r.CheckID, r.Group, r.Title,
 		strconv.FormatBool(r.Passed),
 		r.Detail, r.CheckedAt, r.Version, r.Host, r.MACs,
+		r.roundsPassed(), r.roundsTotal(),
 	}
+}
+
+func (r Row) roundsPassed() string {
+	if r.Rounds == nil {
+		return ""
+	}
+	return strconv.Itoa(r.Rounds.Passed)
+}
+
+func (r Row) roundsTotal() string {
+	if r.Rounds == nil {
+		return ""
+	}
+	return strconv.Itoa(r.Rounds.Total)
 }
 
 func computeMAC(body, secret []byte) string {

@@ -281,6 +281,9 @@ func TestRandomChecksRepeatAndCountFailures(t *testing.T) {
 		if res.Passed || !strings.Contains(res.Detail, "10건 중 5건 실패") {
 			t.Errorf("10건 중 5건 실패로 보고해야 합니다: %s", res.Detail)
 		}
+		if res.Rounds == nil || res.Rounds.Passed != 5 || res.Rounds.Total != 10 {
+			t.Errorf("맞은 건수 5/10 을 남겨야 합니다: %+v", res.Rounds)
+		}
 		if requests != 10 {
 			t.Errorf("요청이 10번이어야 합니다: %d번", requests)
 		}
@@ -293,6 +296,9 @@ func TestRandomChecksStopWhenServerDoesNotRespond(t *testing.T) {
 	res := checkA2(context.Background(), env)
 	if res.Passed || !strings.Contains(res.Detail, "1건째에서 중단") {
 		t.Errorf("첫 건에서 중단해야 합니다: %s", res.Detail)
+	}
+	if res.Rounds == nil || res.Rounds.Passed != 0 || res.Rounds.Total != 10 {
+		t.Errorf("못 보낸 건은 틀린 것으로 세어 0/10 이어야 합니다: %+v", res.Rounds)
 	}
 }
 
