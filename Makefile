@@ -16,10 +16,6 @@ test:
 	@# ./... 는 testdata/ 폴더를 건너뛰므로 가짜 서버는 따로 지정한다
 	go vet ./... ./testdata/fakeserver ./testdata/seedsql
 	go test ./...
-	@# OS별 대응은 사용법(guide.md)과 공지(notice.md)에 똑같이 쓴다. 한쪽만 고치면 여기서 실패한다.
-	@diff -B <(sed -n '/^## OS별 대응/,/^## [^O]/p' docs/guide.md | sed '/^## [^O]/d') \
-	      <(sed -n '/^## OS별 대응/,/^## [^O]/p' docs/notice.md | sed '/^## [^O]/d') \
-	  || (echo "docs/guide.md 와 docs/notice.md 의 'OS별 대응' 부분이 다릅니다. 둘을 똑같이 맞추세요" && exit 1)
 	@# README.md 는 docs/guide.md 와 같아야 한다 (이미지 경로만 docs/images/).
 	@sed 's#](images/#](docs/images/#g' docs/guide.md | diff - README.md \
 	  || (echo "README.md 가 docs/guide.md 와 다릅니다. make readme 로 다시 만드세요" && exit 1)

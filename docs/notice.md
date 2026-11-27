@@ -13,6 +13,20 @@
 
 채점기 사용법은 받은 zip 안의 `GUIDE.md`를 보세요. IntelliJ나 VS Code로 열면 화면 캡처와 함께 보입니다.
 
+## 다운로드 경로
+
+<https://github.com/yeongseoksong/db-assignment-checker/releases/latest>
+
+페이지 아래쪽 **Assets**에서 내 OS에 맞는 zip 하나를 받습니다.
+
+| OS | 파일 |
+|---|---|
+| macOS (M1 이후·Intel 공통) | `checker-macos.zip` |
+| Windows | `checker-windows-amd64.zip` |
+| Linux | `checker-linux-amd64.zip` |
+
+채점기가 고쳐지면 새 버전이 올라옵니다. 위 주소는 항상 최신 버전을 가리키니 제출 전에 한 번 더 확인하세요.
+
 ## OS별 대응
 
 ### macOS
