@@ -207,7 +207,7 @@ func TestJudgeListPassesCorrectServerInAnyOrder(t *testing.T) {
 // A2 의 범위는 항상 minPrice < maxPrice 이고, 정답이 2권 이상이어야 한다 (경계값 검사 A3 와 겹치지 않게).
 func TestRandomRangeIsAlwaysARealRange(t *testing.T) {
 	ds := loadData(t)
-	for seed := int64(0); seed < 2000; seed++ {
+	for seed := range int64(2000) {
 		env := &Env{Data: ds, Rand: rand.New(rand.NewSource(seed))}
 		category, lo, hi := randomRange(env)
 		if !(lo < hi) {

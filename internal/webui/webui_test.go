@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,13 +19,31 @@ func fakeRun(in app.Input) (*app.Result, error) {
 	return &app.Result{Outcomes: []checks.Outcome{o}, Passed: 1, Total: 1, SubmitPath: "a.zip"}, nil
 }
 
-func post(t *testing.T, ts *httptest.Server, path string, form url.Values) *http.Response {
+// get 은 GET 요청을 보내고 본문을 읽어 닫은 뒤 돌려준다.
+func get(t *testing.T, ts *httptest.Server, path string) string {
+	t.Helper()
+	resp, err := http.Get(ts.URL + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(body)
+}
+
+// post 는 폼을 POST 하고 본문을 비우고 닫은 뒤 상태 코드만 돌려준다.
+func post(t *testing.T, ts *httptest.Server, path string, form url.Values) int {
 	t.Helper()
 	resp, err := http.PostForm(ts.URL+path, form)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return resp
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.StatusCode
 }
 
 func TestIndexContainsTokenAndForm(t *testing.T) {
@@ -32,15 +51,7 @@ func TestIndexContainsTokenAndForm(t *testing.T) {
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
 	// httptest 의 Host 는 127.0.0.1:port 라 허용된다.
-	resp, err := http.Get(ts.URL + "/")
-	if err != nil {
-		t.Fatal(err)
-	}
-	buf := new(strings.Builder)
-	b := make([]byte, 1<<16)
-	n, _ := resp.Body.Read(b)
-	buf.Write(b[:n])
-	page := buf.String()
+	page := get(t, ts, "/")
 	if !strings.Contains(page, s.token) || !strings.Contains(page, `type="password"`) || strings.Contains(page, "http://cdn") || strings.Contains(page, "https://") {
 		t.Error("페이지에 토큰·password 입력이 있어야 하고 외부 리소스가 없어야 합니다")
 	}
@@ -50,15 +61,14 @@ func TestRunRequiresTokenAndValidates(t *testing.T) {
 	s := New(fakeRun)
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
-	if r := post(t, ts, "/run", url.Values{"id": {"1"}}); r.StatusCode != http.StatusForbidden {
-		t.Errorf("토큰이 없으면 403 이어야 합니다: %d", r.StatusCode)
+	if code := post(t, ts, "/run", url.Values{"id": {"1"}}); code != http.StatusForbidden {
+		t.Errorf("토큰이 없으면 403 이어야 합니다: %d", code)
 	}
-	if r := post(t, ts, "/run", url.Values{"token": {s.token}, "id": {"홍길동"}}); r.StatusCode != http.StatusBadRequest {
-		t.Errorf("잘못된 학번은 400 이어야 합니다: %d", r.StatusCode)
+	if code := post(t, ts, "/run", url.Values{"token": {s.token}, "id": {"홍길동"}}); code != http.StatusBadRequest {
+		t.Errorf("잘못된 학번은 400 이어야 합니다: %d", code)
 	}
-	r := post(t, ts, "/run", url.Values{"token": {s.token}, "id": {"2023"}})
-	if r.StatusCode != http.StatusOK {
-		t.Errorf("정상 입력은 200 이어야 합니다: %d", r.StatusCode)
+	if code := post(t, ts, "/run", url.Values{"token": {s.token}, "id": {"2023"}}); code != http.StatusOK {
+		t.Errorf("정상 입력은 200 이어야 합니다: %d", code)
 	}
 }
 
@@ -79,8 +89,8 @@ func TestConcurrentRunRejected(t *testing.T) {
 		post(t, ts, "/run", url.Values{"token": {s.token}, "id": {"1"}})
 	}()
 	<-started
-	if r := post(t, ts, "/run", url.Values{"token": {s.token}, "id": {"1"}}); r.StatusCode != http.StatusConflict {
-		t.Errorf("실행 중 두 번째 요청은 409 이어야 합니다: %d", r.StatusCode)
+	if code := post(t, ts, "/run", url.Values{"token": {s.token}, "id": {"1"}}); code != http.StatusConflict {
+		t.Errorf("실행 중 두 번째 요청은 409 이어야 합니다: %d", code)
 	}
 	close(release)
 	wg.Wait()
@@ -104,7 +114,7 @@ func TestClosingCanceledByNewRequestAndIdleTimeout(t *testing.T) {
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
 	post(t, ts, "/closing", url.Values{"token": {s.token}})
-	http.Get(ts.URL + "/") // 새로고침처럼 곧바로 요청이 오면 종료가 취소된다
+	get(t, ts, "/") // 새로고침처럼 곧바로 요청이 오면 종료가 취소된다
 	select {
 	case <-s.Done:
 		t.Fatal("새 요청이 왔으므로 종료되면 안 됩니다")
@@ -129,7 +139,7 @@ func TestClosingCanceledByNewRequestAndIdleTimeout(t *testing.T) {
 
 func TestRejectsForeignHost(t *testing.T) {
 	s := New(fakeRun)
-	req := httptest.NewRequest("GET", "http://evil.example/", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://evil.example/", nil)
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {

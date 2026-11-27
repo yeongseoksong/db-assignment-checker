@@ -368,7 +368,7 @@ func runListCase(ctx context.Context, env *Env, category string, minPrice, maxPr
 func repeatRandom(env *Env, checkID string, one func() roundResult) Result {
 	tried, failed := 0, 0
 	firstFailure := ""
-	for i := 0; i < randomRounds; i++ {
+	for i := range randomRounds {
 		r := one()
 		tried++
 		env.Log.Info("무작위 검사", "id", checkID, "round", i+1, "passed", r.Passed, "detail", r.Detail)

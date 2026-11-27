@@ -40,7 +40,7 @@ func fetch(url string) (string, error) {
 		if err == nil {
 			body, readErr := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			if readErr == nil && resp.StatusCode == 200 {
+			if readErr == nil && resp.StatusCode == http.StatusOK {
 				return string(body), nil
 			}
 			if readErr != nil {

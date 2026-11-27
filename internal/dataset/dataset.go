@@ -4,6 +4,7 @@ package dataset
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 )
@@ -36,7 +37,7 @@ func Parse(data []byte) (*Dataset, error) {
 		return nil, fmt.Errorf("books.json 을 읽을 수 없습니다: %w", err)
 	}
 	if len(books) == 0 {
-		return nil, fmt.Errorf("books.json 이 비어 있습니다. make snapshot 으로 다시 생성하세요")
+		return nil, errors.New("books.json 이 비어 있습니다. make snapshot 으로 다시 생성하세요")
 	}
 	seen := map[string]bool{}
 	var cats []string

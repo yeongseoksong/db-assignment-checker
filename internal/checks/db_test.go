@@ -82,12 +82,13 @@ func TestPasswordNeverLogged(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	env := &Env{Data: loadData(t), HTTP: NewHTTPClient(log), Log: log, Rand: rand.New(rand.NewSource(1)), DBURL: connString, BaseURL: "http://127.0.0.1:1"}
 	outcomes := RunAll(context.Background(), env)
-	all := logBuf.String()
+	var all strings.Builder
+	all.WriteString(logBuf.String())
 	for _, o := range outcomes {
-		all += o.Result.Detail
+		all.WriteString(o.Result.Detail)
 	}
-	if strings.Contains(all, testPassword) {
-		t.Fatalf("로그나 Detail 에 비밀번호가 남았습니다:\n%s", all)
+	if strings.Contains(all.String(), testPassword) {
+		t.Fatalf("로그나 Detail 에 비밀번호가 남았습니다:\n%s", all.String())
 	}
 	if !strings.Contains(RedactURL(connString), "neonuser") || strings.Contains(RedactURL(connString), testPassword) {
 		t.Errorf("RedactURL 결과가 이상합니다: %s", RedactURL(connString))

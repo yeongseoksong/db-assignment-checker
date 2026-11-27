@@ -230,7 +230,7 @@ func sharedDevices(records [][]string) []devicePair {
 	sort.Strings(ids)
 
 	var pairs []devicePair
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		for j := i + 1; j < len(ids); j++ {
 			a, b := macsByID[ids[i]], macsByID[ids[j]]
 			shared := 0

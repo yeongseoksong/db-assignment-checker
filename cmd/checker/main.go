@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"dbchecker/internal/app"
 	"dbchecker/internal/report"
@@ -136,7 +137,8 @@ func runWeb(cfg app.Config, noBrowser bool) error {
 		return fmt.Errorf("입력 창을 띄울 수 없습니다. 다른 프로그램이 포트를 막고 있는지 확인하세요: %w", err)
 	}
 	addr := "http://" + listener.Addr().String() + "/"
-	httpServer := &http.Server{Handler: srv.Handler()}
+	// 헤더를 아주 느리게 보내는 연결이 서버를 붙잡아 두지 못하게 한다 (gosec G112)
+	httpServer := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.Serve(listener) }()
 

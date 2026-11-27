@@ -2,10 +2,25 @@
 version: "2"
 
 linters:
-  # 기본 린터(errcheck, govet, ineffassign, staticcheck, unused)에 아래 둘을 더한다.
+  # 기본 린터(errcheck, govet, ineffassign, staticcheck, unused)에 아래 린터들을 더한다.
   enable:
     - forbidigo # 금지한 호출(panic 등)을 막는다
     - revive # 아래 rules 에 적은 규칙만 켠다
+    # 부작용이 적어 널리 쓰는 린터들
+    - bodyclose # HTTP 응답 Body 를 닫지 않음
+    - errorlint # err == ErrX 대신 errors.Is / errors.As
+    - gocritic # 여러 코드 냄새
+    - nolintlint # //nolint 에 린터 이름과 이유를 남겼는지
+    - misspell # 영어 오타
+    - unconvert # 불필요한 타입 변환
+    - unparam # 항상 같은 값만 받는 인자, 안 쓰는 반환값
+    - copyloopvar # Go 1.22 이후 불필요한 반복 변수 복사
+    - intrange # for i := 0; i < n; i++ 대신 for i := range n
+    - usestdlibvars # "200" 대신 http.StatusOK 같은 표준 상수
+    - perfsprint # 불필요한 fmt.Sprintf, fmt.Errorf
+    - exhaustive # enum switch 에서 빠진 case
+    - sqlclosecheck # DB rows, statement 를 닫지 않음
+    - rowserrcheck # rows.Err() 를 확인하지 않음
 
   settings:
     errcheck:
@@ -19,6 +34,10 @@ linters:
           msg: 예상되는 실패는 error 로 돌려주세요. 정말 필요하면 //nolint:forbidigo 와 이유를 남기세요
         - pattern: ^print(ln)?$
           msg: 내장 print 대신 fmt 를 쓰세요
+
+    nolintlint:
+      require-explanation: true # //nolint 뒤에 이유 필수
+      require-specific: true # //nolint:린터이름 필수
 
     revive:
       rules:
